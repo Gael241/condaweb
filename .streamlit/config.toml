@@ -1,0 +1,74 @@
+# ! Importante revisar
+# ? Considerar 
+# todo: Evaluar impelementación
+# * Código
+# Información
+
+[global]
+# ! Las configuraciones globales no se modifican, es importante que esta sección se mantenga con sus valores por defecto para no alterar el correcto funcionamiento de Streamlit a nivel global. 
+
+[logger]
+# ! Las configuraciones de logger no se modifican, es importante que esta sección se mantenga con sus valores por defecto. En caso de requerirse, revise la documentación oficial de Streamlit.
+
+[client]
+# Mostrar tipo de error y rastrear su origen
+# todo: Modificar en producción
+showErrorDetails = "full"
+
+# Ocultar opciones de desarrollo a usuarios finales
+# ? En producción esta dirección debe ser modificada por la dirección pública del servidor. 
+toolbarMode = "developer"
+
+# [Escalabilidad] = Se permite que la aplicación pueda escalar agregando más funcionalidades
+showSidebarNavigation = true
+
+[runner]
+# Permite escribir una variable o cadena en una línea de código sin print() y sea renderizado automáticamente
+magicEnabled = true
+# Permitir que Streamlit ejecute el código cada vez que el usuario interactúa con un widget
+# todo: A evaluar 
+fastReruns = true
+# Retorna una excepción cuando se intenta guardar datos no serializables cuando esta en true.
+# todo: A evaluar 
+enforceSerializableSessionState = false
+# Los nombres en la propiedad de widget se mantienen
+enumCoercion = "nameOnly"
+
+[server]
+# ! Las configuraciones de server no se modifican, es importante que esta sección se mantenga con sus valores por defecto. En caso de requerirse, revise la documentación oficial de Streamlit.
+
+# todo: A evaluar
+# Reinicia automáticamente la carga del archivo en ejecución al detectar un cambio.
+runOnSave = true
+
+# Protección contra inyección de código malicioso a la aplicaación.
+enableCORS = true
+
+# Genera token de seguridad para evitar ataques desde fuentes confiables
+enableXsrfProtection = true
+
+# Limitar la capacidad de subida de archivos al servidor (en MB)
+maxUploadSize = 30
+
+[browser]
+# ! Las configuraciones de server no se modifican, es importante que esta sección se mantenga con sus valores por defecto. En caso de requerirse, revise la documentación oficial de Streamlit.
+# Define la dirección donde los usuarios deben ingresra para acceder. 
+# ? En producción esta dirección debe ser modificada por la dirección pública del servidor. 
+# ! No modificar en caso de requerirse compartir el enlace NETWORK URL para testing en desarrollo.
+# * serverAddress = "localhost"
+
+# Permite que Streamlit envíe datos de uso de la aplicación a sus servidores. Se cancela por motivos de privacidad para la empresa DHC AGUAKAN.
+gatherUsageStats = false
+
+[theme]
+# Configurar el tipo de modo de la aplicación
+base = "light"
+
+# Color de elementos principales
+primaryColor = "#ff3131"
+
+# Fuente de los títulos
+headingFont = "Montserrat"
+
+# Fuente de los textos
+font = "Arial"
