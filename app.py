@@ -18,13 +18,14 @@ with col1:
 
 with col2:
     archivo = st.file_uploader(
-        "Sube un archivo", ["csv", "xlsx"], accept_multiple_files=False
+        "Selecciona o arrastra un archivo para empezar 📁...", ["csv", "xlsx"], accept_multiple_files=False, help="Haz clic o arrastra un archivo sobre el espacio en gris."
     )
 
     if archivo:
         consolidar = st.button(
-            "Consolidar :material/sync:", on_click=saveValue, use_container_width=100
+            "Consolidar :material/sync:", on_click=saveValue, use_container_width=100, help="Haz clic para empezar a consolidar tus datos", key="archivo"
         )
+        eliminar = st.button("Eliminar archivo:material/delete:", help="Haz clic para eliminar tu archivo ✖️")
 
 st.divider()
 
@@ -33,6 +34,6 @@ try:
         st.balloons()
 
     if st.session_state["archivo_disponible"]:
-        st.download_button("Descargar", file_name="archivo.csv", data="Mi contenido")
+        st.download_button("Descargar :material/download:", file_name="archivo.csv", data="Mi contenido", help="Haz clic para descargar tu archivo consolidado.")
 except:
-    st.text("Aquí se mostrará el archivo consolidado")
+    st.text("Aquí se mostrará el archivo una vez se termine la consolidación de datos")
