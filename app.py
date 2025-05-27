@@ -29,8 +29,10 @@ with col2:
 st.divider()
 
 try:
-    if st.session_state["archivo_disponible"] or consolidar:
+    if consolidar:
         st.balloons()
+
+    if st.session_state["archivo_disponible"]:
         st.download_button("Descargar", file_name="archivo.csv", data="Mi contenido")
 except:
     st.text("Aquí se mostrará el archivo consolidado")
