@@ -22,10 +22,10 @@ with col2:
     )
 
     if archivo:
+        st.caption("Haga clic sobre ✖️ para eliminar el archivo...")
         consolidar = st.button(
             "Consolidar :material/sync:", on_click=saveValue, use_container_width=100, help="Haz clic para empezar a consolidar tus datos", key="archivo"
         )
-        eliminar = st.button("Eliminar archivo:material/delete:", help="Haz clic para eliminar tu archivo ✖️")
 
 st.divider()
 
@@ -37,3 +37,4 @@ try:
         st.download_button("Descargar :material/download:", file_name="archivo.csv", data="Mi contenido", help="Haz clic para descargar tu archivo consolidado.")
 except:
     st.text("Aquí se mostrará el archivo una vez se termine la consolidación de datos")
+
