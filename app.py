@@ -14,18 +14,19 @@ def convertirExcel(archivo):
     output = io.BytesIO()
     archivo.to_excel(output, index=True)
     output.seek(0)
-    return output  # Eliminamos los globos aquí
+    return output
 
 
 @st.cache_data
 def consolidarArchivo(archivo):
+    st.session_state["nombres_archivo"] = archivo.name
     df = pd.read_excel(archivo)
     Encabezados = list(df.columns)
 
     df[Encabezados[0]] = df[Encabezados[0]].astype(str).str.slice(0, 16)
     df = df.groupby(Encabezados[0]).mean()
 
-    st.balloons() 
+    st.balloons()
     return df
 
 
@@ -61,17 +62,23 @@ with col2:
 
 st.divider()
 
+
 if (
     "archivo_consolidado" in st.session_state
     and st.session_state["archivo_consolidado"] is not None
 ):
-    st.success("Consolidación hecha con éxito ✅")
+    st.caption("Observa el proceso de la consolidación en logs")
+    tab_Info, tab_logs = st.tabs(["Información", "Logs"], )
+    tab_logs.success(
+        "Consolidación hecha con éxito ✅",
+    )
     archivo_Excel = convertirExcel(st.session_state["archivo_consolidado"])
+    tab_logs.success("Conversión exitosa ✅")
 
-    st.download_button(
+    tab_Info.download_button(
         label="📥 Descargar archivo consolidado",
         data=archivo_Excel,
-        file_name="Consolidados.xlsx",
+        file_name=f"Consolidado_{st.session_state["nombres_archivo"]}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         key="descargar",
     )
