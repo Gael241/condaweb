@@ -2,7 +2,10 @@ import pandas as pd
 import streamlit as st
 import io
 
-st.markdown("<style>#text_input_2, .st-ei{border: 1px solid #a8a8a8; border-radius: 0.5rem}</style>", unsafe_allow_html=True)
+st.markdown(
+    "<style>#text_input_2, .st-ei{border: 1px solid #a8a8a8; border-radius: 0.5rem}</style>",
+    unsafe_allow_html=True,
+)
 
 if "archivo_disponible" not in st.session_state:
     st.session_state["archivo_disponible"] = False
@@ -92,10 +95,10 @@ if (
     with tab_info:
         with st.expander("Editar características del archivo", icon=":material/input:"):
             with st.form(key="dataForm", border=False):
-<<<<<<< HEAD
-=======
-                st.caption("<b>❗ Es posible omitir el registro de este formulario.</b>", unsafe_allow_html=True)
->>>>>>> 699f6ee2aaed112d5fb6843aa13f1e591955d03b
+                st.caption(
+                    "<b>❗ Es posible omitir el registro de este formulario.</b>",
+                    unsafe_allow_html=True,
+                )
                 nombre_archivo = str(
                     st.text_input(
                         "📄 Editar nombre del archivo.",
@@ -108,7 +111,8 @@ if (
                     "📁 Selecciona el tipo de formato que deseas descargar el archivo.",
                     ["Valores separados por comas (csv)", "  Formato Excel (xlsx)"],
                     index=1,
-                    help="Por defecto, el archivo que se exporta se encuentra en formato Excel.", key="selector"
+                    help="Por defecto, el archivo que se exporta se encuentra en formato Excel.",
+                    key="selector",
                 )
 
                 boton = st.form_submit_button(
