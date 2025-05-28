@@ -98,7 +98,7 @@ if (
         
         with st.expander("Editar archivo", icon=":material/edit:"):
             with st.form(key="dataForm", border=False):
-                st.caption("<b>❗ Es posible omitir el registro de este formulario formulario.</b>", unsafe_allow_html=True)
+                st.caption("<b>❗ Es posible omitir el registro de este formulario.</b>", unsafe_allow_html=True)
                 nombre_archivo = str(
                     st.text_input(
                         "📄 Ingresa el nombre del archivo.",
