@@ -8,6 +8,9 @@ if "archivo_disponible" not in st.session_state:
 if "archivo_consolidado" not in st.session_state:
     st.session_state["archivo_consolidado"] = None
 
+if "nombre_archivo" not in st.session_state:
+    st.session_state["nombre_archivo"] = None
+
 
 @st.cache_data
 def convertirExcel(archivo):
@@ -19,7 +22,7 @@ def convertirExcel(archivo):
 
 @st.cache_data
 def consolidarArchivo(archivo):
-    st.session_state["nombres_archivo"] = archivo.name
+    st.session_state["nombre_archivo"] = archivo.name
     df = pd.read_excel(archivo)
     Encabezados = list(df.columns)
 
@@ -62,23 +65,38 @@ with col2:
 
 st.divider()
 
-
 if (
     "archivo_consolidado" in st.session_state
     and st.session_state["archivo_consolidado"] is not None
 ):
-    st.caption("Observa el proceso de la consolidación en logs")
-    tab_Info, tab_logs = st.tabs(["Información", "Logs"], )
-    tab_logs.success(
-        "Consolidación hecha con éxito ✅",
-    )
-    archivo_Excel = convertirExcel(st.session_state["archivo_consolidado"])
-    tab_logs.success("Conversión exitosa ✅")
+    st.caption("Observa el proceso de la consolidación en Logs :material/update:")
 
-    tab_Info.download_button(
+    tab_info, tab_data, tab_logs = st.tabs(
+        [
+            "Información :material/info:",
+            "Datos :material/table:",
+            "Logs :material/update:",
+        ]
+    )
+
+    with tab_logs:
+        st.success(
+            "Consolidación hecha con éxito ✅",
+        )
+
+    with tab_data:
+        st.text(f"Nombre del archivo: {st.session_state["nombre_archivo"]}")
+        st.session_state["archivo_consolidado"]
+
+    archivo_Excel = convertirExcel(st.session_state["archivo_consolidado"])
+
+    with tab_logs:
+        st.success("Conversión exitosa ✅")
+
+    tab_info.download_button(
         label="📥 Descargar archivo consolidado",
         data=archivo_Excel,
-        file_name=f"Consolidado_{st.session_state["nombres_archivo"]}.xlsx",
+        file_name=f"Consolidado_{st.session_state["nombre_archivo"]}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         key="descargar",
     )
