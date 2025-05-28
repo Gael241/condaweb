@@ -98,7 +98,7 @@ if (
         
         with st.expander("Editar archivo", icon=":material/edit:"):
             with st.form(key="dataForm", border=False):
-                st.caption("<b>❗ Es posible omitir el registro del formulario.</b>", unsafe_allow_html=True)
+                st.caption("<b>❗ Es posible omitir el registro de este formulario formulario.</b>", unsafe_allow_html=True)
                 nombre_archivo = str(
                     st.text_input(
                         "📄 Ingresa el nombre del archivo.",
@@ -111,11 +111,13 @@ if (
                 tipo_archivo = st.selectbox("📁 Selecciona el tipo de formato que deseas.", ["csv", "xlsx"], index=1, help="Por defecto, el archivo que se exporta se encuentra en formato Excel.")
                 
                 st.text("Aplica los cambios en este botón.")
-                boton = st.form_submit_button("Aplicar cambios", help="Si no se ha realizdo ningún cambio, puedes omitir este botón.")
+                boton = st.form_submit_button("Aplicar cambios", help="Aplica los cambios que registraste.")
                 if boton:
-                    st.success("Cambios aplicados ✅")
+                    st.toast("Cambios aplicados ✅")
                 st.caption('<b>"Aplicar cambios" permite que los datos se registren en el archivo.</b>', unsafe_allow_html=True)
 
+        st.text(f"Nombre del archivo: Consolidado_{nombre_archivo}")
+        st.text(f"Tipo de archivo: {tipo_archivo}")
         st.download_button(
             label="📥 Descargar archivo consolidado",
             data=archivo_Excel,
