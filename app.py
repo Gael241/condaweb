@@ -2,14 +2,13 @@ import pandas as pd
 import streamlit as st
 import io
 
+st.markdown("<style>#text_input_2, .st-ei{border: 1px solid #a8a8a8; border-radius: 0.5rem}</style>", unsafe_allow_html=True)
+
 if "archivo_disponible" not in st.session_state:
     st.session_state["archivo_disponible"] = False
 
 if "archivo_consolidado" not in st.session_state:
     st.session_state["archivo_consolidado"] = None
-
-if "nombre_archivo" not in st.session_state:
-    st.session_state["nombre_archivo"] = None
 
 
 @st.cache_data
@@ -23,13 +22,11 @@ def convertirExcel(archivo):
 @st.cache_data
 def consolidarArchivo(archivo):
     archivo_nombre = archivo.name.split(".")
-    st.session_state["nombre_archivo"] = archivo_nombre[0] 
+    st.session_state["nombre_archivo"] = archivo_nombre[0]
     df = pd.read_excel(archivo)
     Encabezados = list(df.columns)
-
     df[Encabezados[0]] = df[Encabezados[0]].astype(str).str.slice(0, 16)
     df = df.groupby(Encabezados[0]).mean()
-
     st.balloons()
     return df
 
@@ -58,6 +55,7 @@ with col2:
         ):
             st.session_state["archivo_consolidado"] = consolidarArchivo(archivo)
 
+            st.session_state["nombre_archivo"] = archivo.name.split(".")[0]
     else:
         st.caption(
             "<b>Recuerda que:</b> <br/> - Solo puedes seleccionar un único archivo 📄 para este proceso. <br/> - Admite CSV y XLSX hasta 30MB.",
@@ -72,18 +70,16 @@ if (
 ):
     st.caption("Observa el proceso de la consolidación en Logs :material/update:")
 
-    tab_info, tab_data, tab_logs = st.tabs(
+    tab_info, tab_data = st.tabs(
         [
-            "Información :material/info:",
-            "Datos :material/table:",
-            "Logs :material/update:",
+            "Características e información del archivo :material/info:",
+            "Vista al archivo procesado :material/table:",
         ]
     )
 
-    with tab_logs:
-        st.success(
-            "Consolidación hecha con éxito ✅",
-        )
+    tab_info.info(
+        "Consolidación hecha con éxito ✅... Empezando a transformar el archivo a Excel.",
+    )
 
     with tab_data:
         st.text(f"Nombre del archivo: {st.session_state["nombre_archivo"]}")
@@ -91,30 +87,37 @@ if (
 
     archivo_Excel = convertirExcel(st.session_state["archivo_consolidado"])
 
-    with tab_logs:
-        st.success("Conversión exitosa ✅")
+    tab_info.success("Conversión exitosa ✅")
 
     with tab_info:
-        
-        with st.expander("Editar archivo", icon=":material/edit:"):
+        with st.expander("Editar características del archivo", icon=":material/input:"):
             with st.form(key="dataForm", border=False):
+<<<<<<< HEAD
+=======
                 st.caption("<b>❗ Es posible omitir el registro de este formulario.</b>", unsafe_allow_html=True)
+>>>>>>> 699f6ee2aaed112d5fb6843aa13f1e591955d03b
                 nombre_archivo = str(
                     st.text_input(
-                        "📄 Ingresa el nombre del archivo.",
+                        "📄 Editar nombre del archivo.",
                         value=st.session_state["nombre_archivo"],
-                        help='Por defecto, el archivo contiene el nombre original con el prefijo "Consolidados"'
+                        help='Por defecto, el archivo contiene el nombre original con el prefijo "Consolidados"',
                     )
                 )
-                st.caption("Agrega un nombre específico a tu archivo: Isla_Mujeres, Cárcamo_del_becario, Solidaridad...")
-                
-                tipo_archivo = st.selectbox("📁 Selecciona el tipo de formato que deseas.", ["csv", "xlsx"], index=1, help="Por defecto, el archivo que se exporta se encuentra en formato Excel.")
-                
-                st.text("Aplica los cambios en este botón.")
-                boton = st.form_submit_button("Aplicar cambios", help="Aplica los cambios que registraste.")
+
+                tipo_archivo = st.selectbox(
+                    "📁 Selecciona el tipo de formato que deseas descargar el archivo.",
+                    ["Valores separados por comas (csv)", "  Formato Excel (xlsx)"],
+                    index=1,
+                    help="Por defecto, el archivo que se exporta se encuentra en formato Excel.", key="selector"
+                )
+
+                boton = st.form_submit_button(
+                    "Confirmar cambios", help="Aplica los cambios que registraste."
+                )
                 if boton:
                     st.toast("Cambios aplicados ✅")
-                st.caption('<b>"Aplicar cambios" permite que los datos se registren en el archivo.</b>', unsafe_allow_html=True)
+
+        tipo_archivo = tipo_archivo.split()[-1].strip("()")
 
         st.text(f"Nombre del archivo: Consolidado_{nombre_archivo}")
         st.text(f"Tipo de archivo: {tipo_archivo}")
