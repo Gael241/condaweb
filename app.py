@@ -71,17 +71,17 @@ if (
     "archivo_consolidado" in st.session_state
     and st.session_state["archivo_consolidado"] is not None
 ):
-    st.caption("Observa el proceso de la consolidación en Logs :material/update:")
+    st.caption('Puedes observar tu archivo consolidado en la sección "Vista previa de datos procesados :material/table:"')
 
     tab_info, tab_data = st.tabs(
         [
             "Características e información del archivo :material/info:",
-            "Vista al archivo procesado :material/table:",
+            "Vista previa de datos procesados:material/table:",
         ]
     )
 
     tab_info.info(
-        "Consolidación hecha con éxito ✅... Empezando a transformar el archivo a Excel.",
+        "Consolidación hecha con éxito ✅... Empezando a transformar el archivo a Excel ⏰",
     )
 
     with tab_data:
@@ -95,10 +95,6 @@ if (
     with tab_info:
         with st.expander("Editar características del archivo", icon=":material/input:"):
             with st.form(key="dataForm", border=False):
-                st.caption(
-                    "<b>❗ Es posible omitir el registro de este formulario.</b>",
-                    unsafe_allow_html=True,
-                )
                 nombre_archivo = str(
                     st.text_input(
                         "📄 Editar nombre del archivo.",
