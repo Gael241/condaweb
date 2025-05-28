@@ -92,6 +92,10 @@ if (
     with tab_info:
         with st.expander("Editar características del archivo", icon=":material/input:"):
             with st.form(key="dataForm", border=False):
+<<<<<<< HEAD
+=======
+                st.caption("<b>❗ Es posible omitir el registro de este formulario.</b>", unsafe_allow_html=True)
+>>>>>>> 699f6ee2aaed112d5fb6843aa13f1e591955d03b
                 nombre_archivo = str(
                     st.text_input(
                         "📄 Editar nombre del archivo.",
