@@ -62,6 +62,7 @@ def convertirExcel(archivo):
     output.seek(0)
     return output
 
+
 @st.cache_data
 def procesar_excel(archivo):
     wb = openpyxl.load_workbook(archivo)
@@ -182,12 +183,16 @@ if archivo == None or nombre_archivo == None:
     )
 
 elif nombre_archivo != None:
-    # ! BODY - 2DO CASE
+    # ! BODY - 2DO CASE - TABS
     # ? Se organiza el cuerpo del contenido a partir de tabs
-    tab_Info, tab_Data = st.tabs(
+    st.caption(
+        'En la pestaña "Historial de procesos :material/update:" puede observar el proceso de su archivo...'
+    )
+    tab_Info, tab_Data, tab_Logs = st.tabs(
         [
             "Características e información del archivo :material/info:",
             "Vista previa de datos procesados :material/table:",
+            "Historial de procesos :material/update:",
         ]
     )
 
@@ -202,13 +207,10 @@ elif nombre_archivo != None:
 
     # ! Tab info - Se muestran características y datos del archivo
     with tab_Info:
-        st.caption(
-            'Al final de esta pantalla se encuentra el botón "Descargar :material/download:"'
-        )
-
         # ! Ejecución
-        # ? Expander de logs
-        with st.expander("Historial de procesos :material/update:", expanded=True):
+        # ? Historial de procesos
+        with tab_Logs:
+            st.text("Historial de procesos")
             # * Mensaje de consolidación
             st.success("Consolidación realizada con éxito ✅")
 
@@ -234,7 +236,9 @@ elif nombre_archivo != None:
             )
 
         # ? Características del archivo
-        with st.expander("Editar características del archivo :material/edit:"):
+        with st.expander(
+            "Editar características del archivo :material/edit:", expanded=True
+        ):
             with st.form("Archivo"):
                 nombre_archivo = st.text_input(
                     "📁 Nombre del archivo",
@@ -252,23 +256,20 @@ elif nombre_archivo != None:
                 if st.form_submit_button("Apalicar cambios"):
                     st.toast("Los cambios han sido registrados")
 
-        # ? Expander con los datos del archivo
-        with st.expander("Datos del archivo", expanded=True):
-            # * Primer tab: Características del archivo
-            st.write(
-                f"<b>Nombre del archivo:</b> {nombre_archivo}", unsafe_allow_html=True
-            )
-            st.caption(
-                f"El archivo será descargado con la extensión: <i>Consolidado_</i>{nombre_archivo}<i>.{archivo_extension}</i>",
-                unsafe_allow_html=True,
-            )
-            st.write(
-                f"<b>Formato del archivo: </b>{archivo_extension}",
-                unsafe_allow_html=True,
-            )
-            st.caption(
-                'Si desea modificar el nombre o extensión del archivo, haga clic sobre el apartado "Editar características del archivo :material/edit:"'
-            )
+        # ? Datos del archivo
+        # * Primer tab: Características del archivo
+        st.write(f"<b>Nombre del archivo:</b> {nombre_archivo}", unsafe_allow_html=True)
+        st.caption(
+            f"El archivo será descargado con la extensión: <i>Consolidado_</i>{nombre_archivo}<i>.{archivo_extension}</i>",
+            unsafe_allow_html=True,
+        )
+        st.write(
+            f"<b>Formato del archivo: </b>{archivo_extension}",
+            unsafe_allow_html=True,
+        )
+        st.caption(
+            'Si desea modificar el nombre o extensión del archivo, haga clic sobre el apartado "Editar características del archivo :material/edit:"'
+        )
 
         # ? Botón de descargar con valores definidos por el usuario
         # * En caso de ser en formato csv
@@ -284,11 +285,13 @@ elif nombre_archivo != None:
                 file_name=archivo_csv,
                 mime="text/csv",
             )
-            st.caption("Si abre el archivo con formato CSV en Excel, ajuste la primera celda ('A') para observar los datos.")
+            st.error(
+                "Si abre el archivo con formato CSV en Excel, ajuste la primera celda ('A') para observar los datos."
+            )
         else:
             # * En caso de ser xlsx
             with open(archivo_ajustado, "rb") as file:
-            # * Botón para descargar EXCEL
+                # * Botón para descargar EXCEL
                 st.download_button(
                     f"Descargar en formato {archivo_extension} :material/download:",
                     data=file,
