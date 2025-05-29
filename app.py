@@ -3,18 +3,20 @@ import openpyxl
 import streamlit as st
 import io
 
+st.cache_data.clear()
+
 # ? Intento de reseteo de valores CSS para mejorar la accesibilidad
 st.markdown(
     "<style>#text_input_2, .st-ei{border: 1px solid #a8a8a8; border-radius: 0.5rem}</style>",
-    unsafe_allow_html=True,
+    unsafe_allow_html=True
 )
 
 # ? Instancia de sesiones globales
-if "archivo_disponible" not in st.session_state:
-    st.session_state["archivo_disponible"] = False
-
 if "archivo_consolidado" not in st.session_state:
     st.session_state["archivo_consolidado"] = None
+
+if "nombre_archivo" not in st.session_state:
+    st.session_state["nombre_archivo"] = None
 
 
 # ? Fragmentos
@@ -23,14 +25,13 @@ if "archivo_consolidado" not in st.session_state:
 # * Formateo de tiempo para primera columna
 def formatear_hora_minuto(df):
     """Convierte la primera columna de un DataFrame a datetime, extrae la hora y genera un archivo Excel."""
-    df = pd.read_excel(df)  
+    df = pd.read_excel(df)
     primera_columna = df.columns[0]
-    
-    
-    df[primera_columna] = pd.to_datetime(df[primera_columna], errors="coerce")
-    df[primera_columna] = df[primera_columna].apply(lambda dt: dt.time() if pd.notnull(dt) else dt)
 
-    
+    df[primera_columna] = pd.to_datetime(df[primera_columna], errors="coerce")
+    df[primera_columna] = df[primera_columna].apply(
+        lambda dt: dt.time() if pd.notnull(dt) else dt
+    )
     output = io.BytesIO()
     df.to_excel(output, index=False, engine="openpyxl")
     output.seek(0)
@@ -40,9 +41,9 @@ def formatear_hora_minuto(df):
     for row in ws.iter_rows(min_row=2, min_col=1, max_col=1):
         for cell in row:
             cell.number_format = "hh:mm"
-    
+
     output.seek(0)
-    return output 
+    return output
 
 
 @st.cache_data
@@ -63,11 +64,10 @@ def convertirExcel(archivo):
     return output
 
 
-@st.cache_data
 # * Consolidar archivo
 def consolidarArchivo(archivo):
-    archivo_nombre = archivo.name.split(".")
-    st.session_state["nombre_archivo"] = archivo_nombre[0]
+    archivo_nombre = archivo.name.split(".")[0]
+    st.session_state["nombre_archivo"] = archivo_nombre
     df = pd.read_excel(archivo)
     Encabezados = list(df.columns)
     df[Encabezados[0]] = df[Encabezados[0]].astype(str).str.slice(0, 16)
@@ -75,6 +75,8 @@ def consolidarArchivo(archivo):
     st.balloons()
     return df
 
+
+# ! HEADER
 
 # ? Definir columnas
 col1, col2 = st.columns([1, 2], gap="medium", vertical_alignment="center")
@@ -96,6 +98,13 @@ with col2:
 
     # * Conficional que permite mostrar indicaciones en caso que se encuentre un archivo selecciondo
     if archivo:
+        
+        # ? Validación de cambio de archivo
+        if st.session_state["nombre_archivo"] != archivo.name and st.session_state["nombre_archivo"] != None:
+            st.toast("Se ha detectado un cambio de archivo, limpiando memoria ⌛...")
+            st.cache_data.clear()
+
+        
         st.caption("Haz clic sobre ✖️ para eliminar el archivo.")
 
         # * Al presionar el botón, ejecuta la consolidación
@@ -117,10 +126,61 @@ with col2:
 
 st.divider()
 
-st.session_state["archivo_consolidado"]
+# ! BODY - 1ER CASO
+# ? Variables globales
+archivo_consolidado = st.session_state["archivo_consolidado"]
+nombre_archivo= st.session_state["nombre_archivo"]
+# ? Condicional que muestra mensaje de inicio en caso de no haber elegido un archivo
+# todo: En caso de que el usuario no haya elegido un archivo o lo haya retirado, se mostrará el mensaje
+if archivo == None or nombre_archivo == None:
+    st.write(
+        "Aquí se mostrará el archivo 📄 que hayas seleccionado haciendo clic sobre el botón de arriba 👆"
+    )
+    
+elif nombre_archivo != None:
+    # ! BODY - 2DO CASE
+    # ? Se organiza el cuerpo del contenido a partir de tabs
+    tab_Info, tab_Data = st.tabs(
+        [
+            "Características e información del archivo :material/info:",
+            "Vista previa de datos procesados :material/table:",
+        ]
+    )
+    with tab_Info:
+        # ? Expander de logs
+        with st.expander("Historial de procesos :material/update:", expanded=True):
+            # * Mensaje de consolidación
+            st.success('Consolidación realizada con éxito ✅')
+            
+            st.info('Dirígete a la pestaña "Vista previa de datos procesados :material/table:" para ver tus datos procesados...')
+            
+            # * Mensajes de formateo
+            st.warning("Formateando datos ⌛")
+            
+            archivo_convertido = convertirExcel(archivo_consolidado)
+            
+            st.success("Datos formateados ✅")
+            
+            st.warning("Preparando archivo en Excel (.xlsx)")
+            
+            archivo_formateado = formatear_hora_minuto(archivo_convertido)
+            
+            st.success("Archivo procesado y listo para descargar en formato Excel (.xlsx)")
+            
+        # * Primer tab: Características del archivo
+        st.write(f"<b>Nombre del archivo:</b> {nombre_archivo}", unsafe_allow_html=True)
 
-archivo_convertido = convertirExcel(st.session_state["archivo_consolidado"])
+    with tab_Data:        
+        # ? Mostrar tabla de datos consolidados
+        st.caption("<b>Esta es una simple exposición de los datos. En el archivo de descarga, las fechas se encuentran formateadas </b> ✅", unsafe_allow_html=True)
+        st.write(archivo_consolidado)
 
-archivo_formateado = formatear_hora_minuto(archivo_convertido)
+# ! Secuencia
 
-st.download_button("Descargar", data=archivo_formateado, file_name="test.xlsx")
+# st.session_state["archivo_consolidado"]
+
+# archivo_convertido = convertirExcel(st.session_state["archivo_consolidado"])
+
+# archivo_formateado = formatear_hora_minuto(archivo_convertido)
+
+# st.download_button("Descargar", data=archivo_formateado, file_name="test.xlsx")
