@@ -27,8 +27,9 @@ def formatear_hora_minuto(df):
     primera_columna = df.columns[0]
 
     df[primera_columna] = pd.to_datetime(df[primera_columna], errors="coerce")
-
-    df[primera_columna] = df[primera_columna].map(lambda x: (x.timestamp() / 86400) + 25569 if pd.notnull(x) else x)
+    df[primera_columna] = df[primera_columna].map(
+        lambda x: (x.timestamp() / 86400) + 25569 if pd.notnull(x) else x
+    )
 
     output = io.BytesIO()
     df.to_excel(output, index=False, engine="openpyxl")
@@ -38,11 +39,11 @@ def formatear_hora_minuto(df):
     ws = wb.active
     for row in ws.iter_rows(min_row=2, min_col=1, max_col=1):
         for cell in row:
-            cell.number_format = "DD/MM/YYYY HH:MM:SS"  # 
+            cell.number_format = "DD/MM/YYYY HH:MM:SS"
 
     output.seek(0)
-    
     return output
+
 
 @st.cache_data
 # * Convertir Dataframe a Excel
@@ -60,6 +61,46 @@ def convertirExcel(archivo):
 
     output.seek(0)
     return output
+
+@st.cache_data
+def procesar_excel(archivo):
+    wb = openpyxl.load_workbook(archivo)
+    hoja = wb.active  # Primera hoja activa
+
+    # Ajustar el ancho de la columna A
+    hoja.column_dimensions["A"].width = 25
+
+    # Crear estilo para fecha
+    date_style = NamedStyle(name="datetime_format")
+    date_style.number_format = "DD/MM/YYYY HH:MM:SS"
+
+    # Iterar sobre la columna A desde la segunda fila
+    for fila in hoja.iter_rows(min_row=2, min_col=1, max_col=1):
+        for celda in fila:
+            if isinstance(
+                celda.value, (int, float)
+            ):  # Convertir si es un número decimal
+                fecha = datetime.fromordinal(693594 + int(celda.value))
+                hora = int((celda.value % 1) * 24)
+                minuto = int((celda.value % 1 * 1440) % 60)
+
+                # Ajustar minutos al múltiplo de 5 más cercano
+                minuto = (minuto // 5) * 5
+
+                if minuto >= 60:
+                    fecha += timedelta(hours=1)
+                    minuto = 0
+
+                fecha = fecha.replace(
+                    hour=hora, minute=minuto, second=0
+                )  # Segundos siempre en 0
+                celda.value = fecha  # Asegurar que la celda almacene un objeto datetime
+                celda.style = date_style  # Aplicar formato
+
+    # Guardar archivo temporal y devolverlo
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp_file:
+        wb.save(tmp_file.name)
+        return tmp_file.name
 
 
 @st.cache_data
@@ -164,6 +205,8 @@ elif nombre_archivo != None:
         st.caption(
             'Al final de esta pantalla se encuentra el botón "Descargar :material/download:"'
         )
+
+        # ! Ejecución
         # ? Expander de logs
         with st.expander("Historial de procesos :material/update:", expanded=True):
             # * Mensaje de consolidación
@@ -183,6 +226,8 @@ elif nombre_archivo != None:
             st.warning("Preparando archivo en Excel (.xlsx)")
 
             archivo_formateado = formatear_hora_minuto(archivo_convertido)
+
+            archivo_formateado = procesar_excel(archivo_formateado)
 
             st.success(
                 "Archivo procesado y listo para descargar en formato Excel (.xlsx)"
@@ -240,11 +285,12 @@ elif nombre_archivo != None:
             )
         else:
             # * En caso de ser xlsx
-            st.download_button(
-                f"Descargar en formato {archivo_extension} :material/download:",
-                data=archivo_formateado,
-                file_name=f"Consolidado_{nombre_archivo}.xlsx",
-            )
+            with open(archivo_formateado, "rb") as file:
+                st.download_button(
+                    f"Descargar en formato {archivo_extension} :material/download:",
+                    data=file,
+                    file_name=f"Consolidado_{nombre_archivo}.xlsx",
+                )
 
 # ! Secuencia
 
