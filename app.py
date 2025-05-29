@@ -1,28 +1,71 @@
 import pandas as pd
+import openpyxl
 import streamlit as st
 import io
 
-st.markdown("<style>#text_input_2, .st-ei{border: 1px solid #a8a8a8; border-radius: 0.5rem}</style>", unsafe_allow_html=True)
+# ? Intento de reseteo de valores CSS para mejorar la accesibilidad
+st.markdown(
+    "<style>#text_input_2, .st-ei{border: 1px solid #a8a8a8; border-radius: 0.5rem}</style>",
+    unsafe_allow_html=True
+)
 
-if "archivo_disponible" not in st.session_state:
-    st.session_state["archivo_disponible"] = False
-
+# ? Instancia de sesiones globales
 if "archivo_consolidado" not in st.session_state:
     st.session_state["archivo_consolidado"] = None
 
+if "nombre_archivo" not in st.session_state:
+    st.session_state["nombre_archivo"] = None
 
+
+# ? Fragmentos
+# todo: Decorador para procesar mejor la caché
 @st.cache_data
-def convertirExcel(archivo):
+# * Formateo de tiempo para primera columna
+def formatear_hora_minuto(df):
+    """Convierte la primera columna de un DataFrame a datetime, extrae la hora y genera un archivo Excel."""
+    df = pd.read_excel(df)
+    primera_columna = df.columns[0]
+
+    df[primera_columna] = pd.to_datetime(df[primera_columna], errors="coerce")
+    df[primera_columna] = df[primera_columna].apply(
+        lambda dt: dt.time() if pd.notnull(dt) else dt
+    )
     output = io.BytesIO()
-    archivo.to_excel(output, index=True)
+    df.to_excel(output, index=False, engine="openpyxl")
+    output.seek(0)
+
+    wb = openpyxl.load_workbook(output)
+    ws = wb.active
+    for row in ws.iter_rows(min_row=2, min_col=1, max_col=1):
+        for cell in row:
+            cell.number_format = "hh:mm"
+
     output.seek(0)
     return output
 
 
 @st.cache_data
+# * Convertir Dataframe a Excel
+def convertirExcel(archivo):
+    output = io.BytesIO()
+    archivo.to_excel(output, index=True, engine="openpyxl")
+    output.seek(0)
+
+    wb = openpyxl.load_workbook(output)
+    ws = wb.active
+
+    for row in ws.iter_rows(min_row=2, min_col=1, max_col=1):
+        for cell in row:
+            cell.number_format = "hh:mm"
+
+    output.seek(0)
+    return output
+
+@st.cache_data
+# * Consolidar archivo
 def consolidarArchivo(archivo):
-    archivo_nombre = archivo.name.split(".")
-    st.session_state["nombre_archivo"] = archivo_nombre[0]
+    archivo_nombre = archivo.name.split(".")[0]
+    st.session_state["nombre_archivo"] = archivo_nombre
     df = pd.read_excel(archivo)
     Encabezados = list(df.columns)
     df[Encabezados[0]] = df[Encabezados[0]].astype(str).str.slice(0, 16)
@@ -31,12 +74,19 @@ def consolidarArchivo(archivo):
     return df
 
 
+# ! HEADER
+
+# ? Definir columnas
 col1, col2 = st.columns([1, 2], gap="medium", vertical_alignment="center")
 
+# ? Dar contenido a las columnas
+# todo: Columna 1
 with col1:
     st.image("./assets/logo_conda.png", width=500)
 
+# todo: Columna 2
 with col2:
+    # * Input para recibir archivo
     archivo = st.file_uploader(
         "✨ Haz clic o arrastra tu archivo aquí para comenzar 🚀",
         ["csv", "xlsx"],
@@ -44,19 +94,22 @@ with col2:
         help='Sube tu archivo, posteriormente se despliega el botón "Consolidar" para continuar con el proceso.',
     )
 
-    if archivo:
+    # * Conficional que permite mostrar indicaciones en caso que se encuentre un archivo selecciondo
+    if archivo:        
         st.caption("Haz clic sobre ✖️ para eliminar el archivo.")
 
+        # * Al presionar el botón, ejecuta la consolidación
         if st.button(
             "Consolidar :material/sync:",
             use_container_width=True,
             help="Haz clic para empezar a consolidar tu archivo.",
             key="consolidar",
         ):
+            # * Enviar dataframe convertido a espacio de almacenamiento global para evitar scope
             st.session_state["archivo_consolidado"] = consolidarArchivo(archivo)
 
-            st.session_state["nombre_archivo"] = archivo.name.split(".")[0]
     else:
+        # * Recordatorio de accesibilidad para el usuario
         st.caption(
             "<b>Recuerda que:</b> <br/> - Solo puedes seleccionar un único archivo 📄 para este proceso. <br/> - Admite CSV y XLSX hasta 30MB.",
             unsafe_allow_html=True,
@@ -64,72 +117,67 @@ with col2:
 
 st.divider()
 
-if (
-    "archivo_consolidado" in st.session_state
-    and st.session_state["archivo_consolidado"] is not None
-):
-    st.caption("Observa el proceso de la consolidación en Logs :material/update:")
-
-    tab_info, tab_data = st.tabs(
+# ! BODY - 1ER CASO
+# ? Variables globales
+archivo_consolidado = st.session_state["archivo_consolidado"]
+nombre_archivo= st.session_state["nombre_archivo"]
+# ? Condicional que muestra mensaje de inicio en caso de no haber elegido un archivo
+# todo: En caso de que el usuario no haya elegido un archivo o lo haya retirado, se mostrará el mensaje
+if archivo == None or nombre_archivo == None:
+    st.write(
+        "Aquí se mostrará el archivo 📄 que hayas seleccionado haciendo clic sobre el botón de arriba 👆"
+    )
+    
+elif nombre_archivo != None:
+    # ! BODY - 2DO CASE
+    # ? Se organiza el cuerpo del contenido a partir de tabs
+    tab_Info, tab_Data = st.tabs(
         [
             "Características e información del archivo :material/info:",
-            "Vista al archivo procesado :material/table:",
+            "Vista previa de datos procesados :material/table:",
         ]
     )
+    with tab_Info:
+        # ? Expander de logs
+        with st.expander("Historial de procesos :material/update:", expanded=True):
+            # * Mensaje de consolidación
+            st.success('Consolidación realizada con éxito ✅')
+            
+            st.info('Dirígete a la pestaña "Vista previa de datos procesados :material/table:" para ver tus datos procesados...')
+            
+            # * Mensajes de formateo
+            st.warning("Formateando datos ⌛")
+            
+            archivo_convertido = convertirExcel(archivo_consolidado)
+            
+            st.success("Datos formateados ✅")
+            
+            st.warning("Preparando archivo en Excel (.xlsx)")
+            
+            archivo_formateado = formatear_hora_minuto(archivo_convertido)
 
-    tab_info.info(
-        "Consolidación hecha con éxito ✅... Empezando a transformar el archivo a Excel.",
-    )
+            
+            st.success("Archivo procesado y listo para descargar en formato Excel (.xlsx)")
+        
+        # * Primer tab: Características del archivo
+        st.write(f"<b>Nombre del archivo:</b> {nombre_archivo}", unsafe_allow_html=True)
+        st.download_button("Descargar en formato Excel :material/download:", data=archivo_formateado, file_name=f"Consolidado_{nombre_archivo}.xlsx")
 
-    with tab_data:
-        st.text(f"Nombre del archivo: {st.session_state["nombre_archivo"]}")
-        st.session_state["archivo_consolidado"]
+        
+        st.download_button("Descargar en CSV :material/download:", data=archivo_formateado, file_name=f"Consolidado_{nombre_archivo}.csv", key="descarga")
+            
 
-    archivo_Excel = convertirExcel(st.session_state["archivo_consolidado"])
+    with tab_Data:        
+        # ? Mostrar tabla de datos consolidados
+        st.caption("<b>Esta es una simple exposición de los datos. En el archivo que se descarga, las fechas se encuentran formateadas </b> ✅", unsafe_allow_html=True)
+        st.write(archivo_consolidado)
 
-    tab_info.success("Conversión exitosa ✅")
+# ! Secuencia
 
-    with tab_info:
-        with st.expander("Editar características del archivo", icon=":material/input:"):
-            with st.form(key="dataForm", border=False):
-<<<<<<< HEAD
-=======
-                st.caption("<b>❗ Es posible omitir el registro de este formulario.</b>", unsafe_allow_html=True)
->>>>>>> 699f6ee2aaed112d5fb6843aa13f1e591955d03b
-                nombre_archivo = str(
-                    st.text_input(
-                        "📄 Editar nombre del archivo.",
-                        value=st.session_state["nombre_archivo"],
-                        help='Por defecto, el archivo contiene el nombre original con el prefijo "Consolidados"',
-                    )
-                )
+# st.session_state["archivo_consolidado"]
 
-                tipo_archivo = st.selectbox(
-                    "📁 Selecciona el tipo de formato que deseas descargar el archivo.",
-                    ["Valores separados por comas (csv)", "  Formato Excel (xlsx)"],
-                    index=1,
-                    help="Por defecto, el archivo que se exporta se encuentra en formato Excel.", key="selector"
-                )
+# archivo_convertido = convertirExcel(st.session_state["archivo_consolidado"])
 
-                boton = st.form_submit_button(
-                    "Confirmar cambios", help="Aplica los cambios que registraste."
-                )
-                if boton:
-                    st.toast("Cambios aplicados ✅")
+# archivo_formateado = formatear_hora_minuto(archivo_convertido)
 
-        tipo_archivo = tipo_archivo.split()[-1].strip("()")
-
-        st.text(f"Nombre del archivo: Consolidado_{nombre_archivo}")
-        st.text(f"Tipo de archivo: {tipo_archivo}")
-        st.download_button(
-            label="📥 Descargar archivo consolidado",
-            data=archivo_Excel,
-            file_name=f"Consolidado_{nombre_archivo}.{tipo_archivo}",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key="descargar",
-        )
-
-else:
-    st.text(
-        "Aquí se mostrará tu archivo 📄 una vez se haya concluido con la consolidación de datos."
-    )
+# st.download_button("Descargar", data=archivo_formateado, file_name="test.xlsx")
