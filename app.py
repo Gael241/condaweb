@@ -158,7 +158,9 @@ elif nombre_archivo != None:
 
     # ! Tab info - Se muestran características y datos del archivo
     with tab_Info:
-        st.caption("Hal final de esta pantalla se encuentra el botón descargar :material/download:")
+        st.caption(
+            "Hal final de esta pantalla se encuentra el botón descargar :material/download:"
+        )
         # ? Expander de logs
         with st.expander("Historial de procesos :material/update:", expanded=True):
             # * Mensaje de consolidación
@@ -220,12 +222,26 @@ elif nombre_archivo != None:
                 'Si desea modificar el nombre o extensión del archivo, haga clic sobre el apartado "Editar características del archivo :material/edit:"'
             )
 
-        # * Botón de descargar con valores definidos por el usuario
-        st.download_button(
-            f"Descargar en formato {archivo_extension} :material/download:",
-            data=archivo_formateado,
-            file_name=f"Consolidado_{nombre_archivo}.{archivo_extension}",
-        )
+        # ? Botón de descargar con valores definidos por el usuario
+        # * En caso de ser en formato csv
+        if archivo_extension == "csv":
+            df = pd.read_excel(archivo_formateado)
+            archivo_csv = f"Consolidado_{nombre_archivo}.csv"
+            df.to_csv(archivo_csv, index=True, encoding="utf-8")
+
+            st.download_button(
+                f"Descargar en formato {archivo_extension} :material/download:",
+                data=open(archivo_csv, "rb").read(),
+                file_name=archivo_csv,
+                mime="text/csv",
+            )
+        else:
+            # * En caso de ser xlsx
+            st.download_button(
+                f"Descargar en formato {archivo_extension} :material/download:",
+                data=archivo_formateado,
+                file_name=f"Consolidado_{nombre_archivo}.xlsx",
+            )
 
 # ! Secuencia
 
