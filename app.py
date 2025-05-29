@@ -227,7 +227,7 @@ elif nombre_archivo != None:
 
             archivo_formateado = formatear_hora_minuto(archivo_convertido)
 
-            archivo_formateado = procesar_excel(archivo_formateado)
+            archivo_ajustado = procesar_excel(archivo_formateado)
 
             st.success(
                 "Archivo procesado y listo para descargar en formato Excel (.xlsx)"
@@ -273,19 +273,22 @@ elif nombre_archivo != None:
         # ? Botón de descargar con valores definidos por el usuario
         # * En caso de ser en formato csv
         if archivo_extension == "csv":
-            df = pd.read_excel(archivo_formateado)
+            df = pd.read_excel(archivo_ajustado)
             archivo_csv = f"Consolidado_{nombre_archivo}.csv"
-            df.to_csv(archivo_csv, index=True, encoding="utf-8")
+            df.to_csv(archivo_csv, index=False, encoding="utf-8")
 
+            # * Botón para descargar CSV
             st.download_button(
                 f"Descargar en formato {archivo_extension} :material/download:",
                 data=open(archivo_csv, "rb").read(),
                 file_name=archivo_csv,
                 mime="text/csv",
             )
+            st.caption("Si abre el archivo con formato CSV en Excel, ajuste la primera celda ('A') para observar los datos.")
         else:
             # * En caso de ser xlsx
-            with open(archivo_formateado, "rb") as file:
+            with open(archivo_ajustado, "rb") as file:
+            # * Botón para descargar EXCEL
                 st.download_button(
                     f"Descargar en formato {archivo_extension} :material/download:",
                     data=file,
