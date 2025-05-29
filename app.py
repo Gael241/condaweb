@@ -198,19 +198,23 @@ elif nombre_archivo != None:
 
     # ! Tab Data - Muestra tabla consolidada
     with tab_Data:
+        st.subheader("Vista previa de datos procesados :material/table:")
         # ? Mostrar tabla de datos consolidados
         st.caption(
-            "<b>Esta es una simple exposición de los datos. En el archivo que se descarga, las fechas se encuentran formateadas </b> ✅",
+            "<b>Esta es una simple exposición de tus datos consolidados. En el archivo que se descarga, las fechas se encuentran formateadas </b> ✅",
             unsafe_allow_html=True,
         )
         st.write(archivo_consolidado)
+        st.error("Pase el mouse sobre la tabla para interactuar con ella: Puede buscar en los registros de la tabla sobre la lupa en la parte superior derecha o hacerla más grande, pero no descargue el archivo por este medio.")
 
     # ! Tab info - Se muestran características y datos del archivo
     with tab_Info:
         # ! Ejecución
         # ? Historial de procesos
         with tab_Logs:
-            st.text("Historial de procesos")
+            st.subheader("Historial de procesos")
+            st.caption('<b>Al finalizar este proceso, podrás descargar tu archivo en "Características e información del archivo" en la primera pestaña</b>', unsafe_allow_html = True)
+            
             # * Mensaje de consolidación
             st.success("Consolidación realizada con éxito ✅")
 
@@ -225,7 +229,7 @@ elif nombre_archivo != None:
 
             st.success("Datos formateados ✅")
 
-            st.warning("Preparando archivo en Excel (.xlsx)")
+            st.warning("Preparando archivo en Excel por defecto (.xlsx)")
 
             archivo_formateado = formatear_hora_minuto(archivo_convertido)
 
@@ -234,8 +238,12 @@ elif nombre_archivo != None:
             st.success(
                 "Archivo procesado y listo para descargar en formato Excel (.xlsx)"
             )
+            
+            st.caption('Su archivo se ha procesado de forma exitosa. Para descargar, modificar el nombre o extensión del archivo, dirígete a "Características e información del archivo :material/info:"')
 
         # ? Características del archivo
+        tab_Info.subheader("Características e información del archivo :material/info:")
+        st.caption("<b>Aquí puedes ver los detalles de tu archivo o modificarlos según tus necesidades.</b>", unsafe_allow_html = True)
         with st.expander(
             "Editar características del archivo :material/edit:", expanded=True
         ):
