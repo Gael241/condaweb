@@ -1,6 +1,7 @@
 import pandas as pd
 import openpyxl
 import streamlit as st
+import os
 import io
 from openpyxl.styles import NamedStyle
 from datetime import datetime, timedelta
@@ -213,7 +214,7 @@ elif nombre_archivo != None:
         # ? Historial de procesos
         with tab_Logs:
             st.subheader("Historial de procesos")
-            st.caption('<b>Al finalizar este proceso, podrás descargar tu archivo en "Características e información del archivo" en la primera pestaña</b>', unsafe_allow_html = True)
+            st.caption('<b>Al finalizar este proceso, podrás descargar tu archivo en "Características e información del archivo" que se encuentra en la primera pestaña.</b>', unsafe_allow_html = True)
             
             # * Mensaje de consolidación
             st.success("Consolidación realizada con éxito ✅")
@@ -260,7 +261,8 @@ elif nombre_archivo != None:
                     ["xlsx", "csv"],
                     index=0,
                 )
-
+                
+                st.error('Haz clic en "Aplicar cambios" para guardar de forma correcta los cambios realizados.')
                 if st.form_submit_button("Apalicar cambios"):
                     st.toast("Los cambios han sido registrados")
 
@@ -289,12 +291,18 @@ elif nombre_archivo != None:
             df.to_csv(archivo_csv, index=False, encoding="utf-8-sig")
 
             # * Botón para descargar CSV
-            st.download_button(
+            if st.download_button(
                 f"Descargar en formato {archivo_extension} :material/download:",
                 data=open(archivo_csv, "rb").read(),
                 file_name=archivo_csv,
                 mime="text/csv",
-            )
+            ):            
+                # ! Eliminar archivo que se genera
+                archivo_basura = archivo_csv
+                ruta = os.path.join(os.getcwd(), archivo_csv)
+                os.remove(ruta)
+                print("Limpieza realizada")
+
             st.error(
                 "Si abre el archivo con formato CSV en Excel, ajuste la primera celda ('A') para observar los datos."
             )
