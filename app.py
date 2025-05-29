@@ -2,6 +2,9 @@ import pandas as pd
 import openpyxl
 import streamlit as st
 import io
+from openpyxl.styles import NamedStyle
+from datetime import datetime, timedelta
+import tempfile
 
 # ? Instancia de sesiones globales
 if "archivo_consolidado" not in st.session_state:
@@ -19,14 +22,14 @@ if "archivo_extension" not in st.session_state:
 @st.cache_data
 # * Formateo de tiempo para primera columna
 def formatear_hora_minuto(df):
-    """Convierte la primera columna de un DataFrame a datetime, extrae la hora y genera un archivo Excel."""
+    """Convierte la primera columna de un DataFrame a formato serial de Excel y asegura que Excel lo reconozca como fecha."""
     df = pd.read_excel(df)
     primera_columna = df.columns[0]
 
     df[primera_columna] = pd.to_datetime(df[primera_columna], errors="coerce")
-    df[primera_columna] = df[primera_columna].apply(
-        lambda dt: dt.time() if pd.notnull(dt) else dt
-    )
+
+    df[primera_columna] = df[primera_columna].map(lambda x: (x.timestamp() / 86400) + 25569 if pd.notnull(x) else x)
+
     output = io.BytesIO()
     df.to_excel(output, index=False, engine="openpyxl")
     output.seek(0)
@@ -35,11 +38,11 @@ def formatear_hora_minuto(df):
     ws = wb.active
     for row in ws.iter_rows(min_row=2, min_col=1, max_col=1):
         for cell in row:
-            cell.number_format = "hh:mm"
+            cell.number_format = "DD/MM/YYYY HH:MM:SS"  # 
 
     output.seek(0)
+    
     return output
-
 
 @st.cache_data
 # * Convertir Dataframe a Excel
@@ -159,7 +162,7 @@ elif nombre_archivo != None:
     # ! Tab info - Se muestran características y datos del archivo
     with tab_Info:
         st.caption(
-            "Hal final de esta pantalla se encuentra el botón descargar :material/download:"
+            'Al final de esta pantalla se encuentra el botón "Descargar :material/download:"'
         )
         # ? Expander de logs
         with st.expander("Historial de procesos :material/update:", expanded=True):
