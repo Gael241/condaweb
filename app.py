@@ -272,11 +272,13 @@ elif nombre_archivo != None:
         )
 
         # ? Botón de descargar con valores definidos por el usuario
-        # * En caso de ser en formato csv
+        # * En caso de ser en formato csv, realizar conversión
         if archivo_extension == "csv":
             df = pd.read_excel(archivo_ajustado)
             archivo_csv = f"Consolidado_{nombre_archivo}.csv"
-            df.to_csv(archivo_csv, index=False, encoding="utf-8")
+
+            # Exportar a CSV con codificación utf-8-sig
+            df.to_csv(archivo_csv, index=False, encoding="utf-8-sig")
 
             # * Botón para descargar CSV
             st.download_button(
