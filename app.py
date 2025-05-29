@@ -3,8 +3,6 @@ import openpyxl
 import streamlit as st
 import io
 
-st.cache_data.clear()
-
 # ? Intento de reseteo de valores CSS para mejorar la accesibilidad
 st.markdown(
     "<style>#text_input_2, .st-ei{border: 1px solid #a8a8a8; border-radius: 0.5rem}</style>",
@@ -63,7 +61,7 @@ def convertirExcel(archivo):
     output.seek(0)
     return output
 
-
+@st.cache_data
 # * Consolidar archivo
 def consolidarArchivo(archivo):
     archivo_nombre = archivo.name.split(".")[0]
@@ -97,14 +95,7 @@ with col2:
     )
 
     # * Conficional que permite mostrar indicaciones en caso que se encuentre un archivo selecciondo
-    if archivo:
-        
-        # ? Validación de cambio de archivo
-        if st.session_state["nombre_archivo"] != archivo.name and st.session_state["nombre_archivo"] != None:
-            st.toast("Se ha detectado un cambio de archivo, limpiando memoria ⌛...")
-            st.cache_data.clear()
-
-        
+    if archivo:        
         st.caption("Haz clic sobre ✖️ para eliminar el archivo.")
 
         # * Al presionar el botón, ejecuta la consolidación
@@ -164,15 +155,21 @@ elif nombre_archivo != None:
             st.warning("Preparando archivo en Excel (.xlsx)")
             
             archivo_formateado = formatear_hora_minuto(archivo_convertido)
+
             
             st.success("Archivo procesado y listo para descargar en formato Excel (.xlsx)")
-            
+        
         # * Primer tab: Características del archivo
         st.write(f"<b>Nombre del archivo:</b> {nombre_archivo}", unsafe_allow_html=True)
+        st.download_button("Descargar en formato Excel :material/download:", data=archivo_formateado, file_name=f"Consolidado_{nombre_archivo}.xlsx")
+
+        
+        st.download_button("Descargar en CSV :material/download:", data=archivo_formateado, file_name=f"Consolidado_{nombre_archivo}.csv", key="descarga")
+            
 
     with tab_Data:        
         # ? Mostrar tabla de datos consolidados
-        st.caption("<b>Esta es una simple exposición de los datos. En el archivo de descarga, las fechas se encuentran formateadas </b> ✅", unsafe_allow_html=True)
+        st.caption("<b>Esta es una simple exposición de los datos. En el archivo que se descarga, las fechas se encuentran formateadas </b> ✅", unsafe_allow_html=True)
         st.write(archivo_consolidado)
 
 # ! Secuencia
