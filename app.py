@@ -67,10 +67,16 @@ def consolidarArchivo(archivo):
     archivo_extension = archivo.name.split(".")[1]
     st.session_state["archivo_extension"] = archivo_extension
     st.session_state["nombre_archivo"] = archivo_nombre
-    df = pd.read_excel(archivo)
-    Encabezados = list(df.columns)
-    df[Encabezados[0]] = df[Encabezados[0]].astype(str).str.slice(0, 16)
-    df = df.groupby(Encabezados[0]).mean()
+    if archivo_extension == "xlsx":
+        df = pd.read_excel(archivo)
+        Encabezados = list(df.columns)
+        df[Encabezados[0]] = df[Encabezados[0]].astype(str).str.slice(0, 16)
+        df = df.groupby(Encabezados[0]).mean()
+    else:
+        df = pd.read_csv(archivo)
+        Encabezados = list(df.columns)
+        df[Encabezados[0]] = df[Encabezados[0]].astype(str).str.slice(0, 16)
+        df = df.groupby(Encabezados[0]).mean()
     st.balloons()
     return df
 
@@ -184,7 +190,7 @@ elif nombre_archivo != None:
             "Descargar en CSV :material/download:",
             data=archivo_formateado,
             file_name=f"Consolidado_{nombre_archivo}.csv",
-            key="descarga",
+            key="descarga"
         )
 
     with tab_Data:
