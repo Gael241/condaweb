@@ -3,18 +3,15 @@ import openpyxl
 import streamlit as st
 import io
 
-# ? Intento de reseteo de valores CSS para mejorar la accesibilidad
-st.markdown(
-    "<style>#text_input_2, .st-ei{border: 1px solid #a8a8a8; border-radius: 0.5rem}</style>",
-    unsafe_allow_html=True
-)
-
 # ? Instancia de sesiones globales
 if "archivo_consolidado" not in st.session_state:
     st.session_state["archivo_consolidado"] = None
 
 if "nombre_archivo" not in st.session_state:
     st.session_state["nombre_archivo"] = None
+
+if "archivo_extension" not in st.session_state:
+    st.session_state["archivo_extension"] = None
 
 
 # ? Fragmentos
@@ -61,10 +58,14 @@ def convertirExcel(archivo):
     output.seek(0)
     return output
 
+
 @st.cache_data
 # * Consolidar archivo
 def consolidarArchivo(archivo):
     archivo_nombre = archivo.name.split(".")[0]
+    archivo_extension = archivo_nombre
+    archivo_extension = archivo.name.split(".")[1]
+    st.session_state["archivo_extension"] = archivo_extension
     st.session_state["nombre_archivo"] = archivo_nombre
     df = pd.read_excel(archivo)
     Encabezados = list(df.columns)
@@ -95,7 +96,7 @@ with col2:
     )
 
     # * Conficional que permite mostrar indicaciones en caso que se encuentre un archivo selecciondo
-    if archivo:        
+    if archivo:
         st.caption("Haz clic sobre ✖️ para eliminar el archivo.")
 
         # * Al presionar el botón, ejecuta la consolidación
@@ -120,14 +121,16 @@ st.divider()
 # ! BODY - 1ER CASO
 # ? Variables globales
 archivo_consolidado = st.session_state["archivo_consolidado"]
-nombre_archivo= st.session_state["nombre_archivo"]
+nombre_archivo = st.session_state["nombre_archivo"]
+archivo_extension = st.session_state["archivo_extension"]
+
 # ? Condicional que muestra mensaje de inicio en caso de no haber elegido un archivo
 # todo: En caso de que el usuario no haya elegido un archivo o lo haya retirado, se mostrará el mensaje
 if archivo == None or nombre_archivo == None:
     st.write(
         "Aquí se mostrará el archivo 📄 que hayas seleccionado haciendo clic sobre el botón de arriba 👆"
     )
-    
+
 elif nombre_archivo != None:
     # ! BODY - 2DO CASE
     # ? Se organiza el cuerpo del contenido a partir de tabs
@@ -138,38 +141,58 @@ elif nombre_archivo != None:
         ]
     )
     with tab_Info:
+        # ? Expander con los datos del archivo
+        with st.expander("Datos del archivo", expanded=True):
+            # * Primer tab: Características del archivo
+            st.write(
+                f"<b>Nombre del archivo:</b> {nombre_archivo}", unsafe_allow_html=True
+            )
+            st.caption(f"El archivo será descargado con la extensión: <i>Consolidado_</i>{nombre_archivo}<i>.{archivo_extension}</i>", unsafe_allow_html=True)
+            st.write(f"<b>Formato del archivo: </b>{archivo_extension}", unsafe_allow_html=True)
+
         # ? Expander de logs
         with st.expander("Historial de procesos :material/update:", expanded=True):
             # * Mensaje de consolidación
-            st.success('Consolidación realizada con éxito ✅')
-            
-            st.info('Dirígete a la pestaña "Vista previa de datos procesados :material/table:" para ver tus datos procesados...')
-            
+            st.success("Consolidación realizada con éxito ✅")
+
+            st.info(
+                'Dirígete a la pestaña "Vista previa de datos procesados :material/table:" para ver tus datos procesados...'
+            )
+
             # * Mensajes de formateo
             st.warning("Formateando datos ⌛")
-            
+
             archivo_convertido = convertirExcel(archivo_consolidado)
-            
+
             st.success("Datos formateados ✅")
-            
+
             st.warning("Preparando archivo en Excel (.xlsx)")
-            
+
             archivo_formateado = formatear_hora_minuto(archivo_convertido)
 
-            
-            st.success("Archivo procesado y listo para descargar en formato Excel (.xlsx)")
-        
-        # * Primer tab: Características del archivo
-        st.write(f"<b>Nombre del archivo:</b> {nombre_archivo}", unsafe_allow_html=True)
-        st.download_button("Descargar en formato Excel :material/download:", data=archivo_formateado, file_name=f"Consolidado_{nombre_archivo}.xlsx")
+            st.success(
+                "Archivo procesado y listo para descargar en formato Excel (.xlsx)"
+            )
 
-        
-        st.download_button("Descargar en CSV :material/download:", data=archivo_formateado, file_name=f"Consolidado_{nombre_archivo}.csv", key="descarga")
-            
+        st.download_button(
+            "Descargar en formato Excel :material/download:",
+            data=archivo_formateado,
+            file_name=f"Consolidado_{nombre_archivo}.xlsx",
+        )
 
-    with tab_Data:        
+        st.download_button(
+            "Descargar en CSV :material/download:",
+            data=archivo_formateado,
+            file_name=f"Consolidado_{nombre_archivo}.csv",
+            key="descarga",
+        )
+
+    with tab_Data:
         # ? Mostrar tabla de datos consolidados
-        st.caption("<b>Esta es una simple exposición de los datos. En el archivo que se descarga, las fechas se encuentran formateadas </b> ✅", unsafe_allow_html=True)
+        st.caption(
+            "<b>Esta es una simple exposición de los datos. En el archivo que se descarga, las fechas se encuentran formateadas </b> ✅",
+            unsafe_allow_html=True,
+        )
         st.write(archivo_consolidado)
 
 # ! Secuencia
