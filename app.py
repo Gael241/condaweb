@@ -1,6 +1,7 @@
 import pandas as pd
 import openpyxl
 import streamlit as st
+import os
 import io
 from openpyxl.styles import NamedStyle
 from datetime import datetime, timedelta
@@ -198,19 +199,23 @@ elif nombre_archivo != None:
 
     # ! Tab Data - Muestra tabla consolidada
     with tab_Data:
+        st.subheader("Vista previa de datos procesados :material/table:")
         # ? Mostrar tabla de datos consolidados
         st.caption(
-            "<b>Esta es una simple exposición de los datos. En el archivo que se descarga, las fechas se encuentran formateadas </b> ✅",
+            "<b>Esta es una simple exposición de tus datos consolidados. En el archivo que se descarga, las fechas se encuentran formateadas </b> ✅",
             unsafe_allow_html=True,
         )
         st.write(archivo_consolidado)
+        st.error("Pase el mouse sobre la tabla para interactuar con ella: Puede buscar en los registros de la tabla sobre la lupa en la parte superior derecha o hacerla más grande, pero no descargue el archivo por este medio.")
 
     # ! Tab info - Se muestran características y datos del archivo
     with tab_Info:
         # ! Ejecución
         # ? Historial de procesos
         with tab_Logs:
-            st.text("Historial de procesos")
+            st.subheader("Historial de procesos")
+            st.caption('<b>Al finalizar este proceso, podrás descargar tu archivo en "Características e información del archivo" que se encuentra en la primera pestaña.</b>', unsafe_allow_html = True)
+            
             # * Mensaje de consolidación
             st.success("Consolidación realizada con éxito ✅")
 
@@ -225,7 +230,7 @@ elif nombre_archivo != None:
 
             st.success("Datos formateados ✅")
 
-            st.warning("Preparando archivo en Excel (.xlsx)")
+            st.warning("Preparando archivo en Excel por defecto (.xlsx)")
 
             archivo_formateado = formatear_hora_minuto(archivo_convertido)
 
@@ -234,8 +239,12 @@ elif nombre_archivo != None:
             st.success(
                 "Archivo procesado y listo para descargar en formato Excel (.xlsx)"
             )
+            
+            st.caption('Su archivo se ha procesado de forma exitosa. Para descargar, modificar el nombre o extensión del archivo, dirígete a "Características e información del archivo :material/info:"')
 
         # ? Características del archivo
+        tab_Info.subheader("Características e información del archivo :material/info:")
+        st.caption("<b>Aquí puedes ver los detalles de tu archivo o modificarlos según tus necesidades.</b>", unsafe_allow_html = True)
         with st.expander(
             "Editar características del archivo :material/edit:", expanded=True
         ):
@@ -252,7 +261,8 @@ elif nombre_archivo != None:
                     ["xlsx", "csv"],
                     index=0,
                 )
-
+                
+                st.error('Haz clic en "Aplicar cambios" para guardar de forma correcta los cambios realizados.')
                 if st.form_submit_button("Apalicar cambios"):
                     st.toast("Los cambios han sido registrados")
 
@@ -281,12 +291,18 @@ elif nombre_archivo != None:
             df.to_csv(archivo_csv, index=False, encoding="utf-8-sig")
 
             # * Botón para descargar CSV
-            st.download_button(
+            if st.download_button(
                 f"Descargar en formato {archivo_extension} :material/download:",
                 data=open(archivo_csv, "rb").read(),
                 file_name=archivo_csv,
                 mime="text/csv",
-            )
+            ):            
+                # ! Eliminar archivo que se genera
+                archivo_basura = archivo_csv
+                ruta = os.path.join(os.getcwd(), archivo_csv)
+                os.remove(ruta)
+                print("Limpieza realizada")
+
             st.error(
                 "Si abre el archivo con formato CSV en Excel, ajuste la primera celda ('A') para observar los datos."
             )
