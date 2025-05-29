@@ -146,16 +146,19 @@ elif nombre_archivo != None:
             "Vista previa de datos procesados :material/table:",
         ]
     )
-    with tab_Info:
-        # ? Expander con los datos del archivo
-        with st.expander("Datos del archivo", expanded=True):
-            # * Primer tab: Características del archivo
-            st.write(
-                f"<b>Nombre del archivo:</b> {nombre_archivo}", unsafe_allow_html=True
-            )
-            st.caption(f"El archivo será descargado con la extensión: <i>Consolidado_</i>{nombre_archivo}<i>.{archivo_extension}</i>", unsafe_allow_html=True)
-            st.write(f"<b>Formato del archivo: </b>{archivo_extension}", unsafe_allow_html=True)
 
+    # ! Tab Data - Muestra tabla consolidada
+    with tab_Data:
+        # ? Mostrar tabla de datos consolidados
+        st.caption(
+            "<b>Esta es una simple exposición de los datos. En el archivo que se descarga, las fechas se encuentran formateadas </b> ✅",
+            unsafe_allow_html=True,
+        )
+        st.write(archivo_consolidado)
+
+    # ! Tab info - Se muestran características y datos del archivo
+    with tab_Info:
+        st.caption("Hal final de esta pantalla se encuentra el botón descargar :material/download:")
         # ? Expander de logs
         with st.expander("Historial de procesos :material/update:", expanded=True):
             # * Mensaje de consolidación
@@ -180,26 +183,49 @@ elif nombre_archivo != None:
                 "Archivo procesado y listo para descargar en formato Excel (.xlsx)"
             )
 
-        st.download_button(
-            "Descargar en formato Excel :material/download:",
-            data=archivo_formateado,
-            file_name=f"Consolidado_{nombre_archivo}.xlsx",
-        )
+        # ? Características del archivo
+        with st.expander("Editar características del archivo :material/edit:"):
+            with st.form("Archivo"):
+                nombre_archivo = st.text_input(
+                    "📁 Nombre del archivo",
+                    placeholder=f"Consolidado_{nombre_archivo}",
+                    value=nombre_archivo,
+                    help="Agrega un nombre específico a tu archivo",
+                )
 
-        st.download_button(
-            "Descargar en CSV :material/download:",
-            data=archivo_formateado,
-            file_name=f"Consolidado_{nombre_archivo}.csv",
-            key="descarga"
-        )
+                archivo_extension = st.selectbox(
+                    "Selecciona elformato que desees para el archivo",
+                    ["xlsx", "csv"],
+                    index=0,
+                )
 
-    with tab_Data:
-        # ? Mostrar tabla de datos consolidados
-        st.caption(
-            "<b>Esta es una simple exposición de los datos. En el archivo que se descarga, las fechas se encuentran formateadas </b> ✅",
-            unsafe_allow_html=True,
+                if st.form_submit_button("Apalicar cambios"):
+                    st.toast("Los cambios han sido registrados")
+
+        # ? Expander con los datos del archivo
+        with st.expander("Datos del archivo", expanded=True):
+            # * Primer tab: Características del archivo
+            st.write(
+                f"<b>Nombre del archivo:</b> {nombre_archivo}", unsafe_allow_html=True
+            )
+            st.caption(
+                f"El archivo será descargado con la extensión: <i>Consolidado_</i>{nombre_archivo}<i>.{archivo_extension}</i>",
+                unsafe_allow_html=True,
+            )
+            st.write(
+                f"<b>Formato del archivo: </b>{archivo_extension}",
+                unsafe_allow_html=True,
+            )
+            st.caption(
+                'Si desea modificar el nombre o extensión del archivo, haga clic sobre el apartado "Editar características del archivo :material/edit:"'
+            )
+
+        # * Botón de descargar con valores definidos por el usuario
+        st.download_button(
+            f"Descargar en formato {archivo_extension} :material/download:",
+            data=archivo_formateado,
+            file_name=f"Consolidado_{nombre_archivo}.{archivo_extension}",
         )
-        st.write(archivo_consolidado)
 
 # ! Secuencia
 
