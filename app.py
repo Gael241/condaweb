@@ -180,7 +180,7 @@ archivo_extension = st.session_state["archivo_extension"]
 # todo: En caso de que el usuario no haya elegido un archivo o lo haya retirado, se mostrará el mensaje
 if archivo == None or nombre_archivo == None:
     st.write(
-        "Aquí se mostrará el archivo 📄 que hayas seleccionado haciendo clic sobre el botón de arriba 👆"
+        "Aquí se mostrará el archivo 📄 una vez haya terminado de consolidarse. Para comenzar, haz clic sobre el botón de arriba 👆 o arrastra tu archivo ✊"
     )
 
 elif nombre_archivo != None:
@@ -206,7 +206,7 @@ elif nombre_archivo != None:
             unsafe_allow_html=True,
         )
         st.write(archivo_consolidado)
-        st.error("Pase el mouse sobre la tabla para interactuar con ella: Puede buscar en los registros de la tabla sobre la lupa en la parte superior derecha o hacerla más grande, pero no descargue el archivo por este medio.")
+        st.error("Pase el mouse sobre la tabla para interactuar con ella: Puede buscar en los registros de la tabla haciendo clic sobre la lupa en la parte superior derecha o hacerla más grande, pero no descargue el archivo por este medio.")
 
     # ! Tab info - Se muestran características y datos del archivo
     with tab_Info:
@@ -291,17 +291,17 @@ elif nombre_archivo != None:
             df.to_csv(archivo_csv, index=False, encoding="utf-8-sig")
 
             # * Botón para descargar CSV
-            if st.download_button(
+            st.download_button(
                 f"Descargar en formato {archivo_extension} :material/download:",
                 data=open(archivo_csv, "rb").read(),
                 file_name=archivo_csv,
                 mime="text/csv",
-            ):            
-                # ! Eliminar archivo que se genera
-                archivo_basura = archivo_csv
-                ruta = os.path.join(os.getcwd(), archivo_csv)
-                os.remove(ruta)
-                print("Limpieza realizada")
+            )
+            # ! Eliminar archivo que se genera
+            archivo_basura = archivo_csv
+            ruta = os.path.join(os.getcwd(), archivo_csv)
+            os.remove(ruta)
+            print("Limpieza realizada")
 
             st.error(
                 "Si abre el archivo con formato CSV en Excel, ajuste la primera celda ('A') para observar los datos."
