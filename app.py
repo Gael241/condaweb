@@ -20,9 +20,6 @@ if "nombre_archivo" not in st.session_state:
 if "archivo_extension" not in st.session_state:
     st.session_state["archivo_extension"] = None
 
-proceso_terminado_testing = False
-
-
 # ? Fragmentos
 # todo: Decorador para procesar mejor la caché
 @st.cache_data
@@ -234,7 +231,6 @@ elif nombre_archivo != None:
         # ? Historial de procesos
         with tab_Logs:
             st.subheader("Historial de procesos")
-            st.write(proceso_terminado_testing)
             st.caption(
                 '<b>Al finalizar este proceso, podrás descargar tu archivo en "Características e información del archivo" que se encuentra en la primera pestaña.</b>',
                 unsafe_allow_html=True,
@@ -267,8 +263,6 @@ elif nombre_archivo != None:
             st.caption(
                 'Su archivo se ha procesado de forma exitosa. Para descargar, modificar el nombre o extensión del archivo, dirígete a "Características e información del archivo :material/info:"'
             )
-            if archivo_ajustado:            
-                proceso_terminado_testing = True
 
         # ? Características del archivo
         tab_Info.subheader("Características e información del archivo :material/info:")
