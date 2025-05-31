@@ -20,6 +20,8 @@ if "nombre_archivo" not in st.session_state:
 if "archivo_extension" not in st.session_state:
     st.session_state["archivo_extension"] = None
 
+proceso_terminado_testing = False
+
 
 # ? Fragmentos
 # todo: Decorador para procesar mejor la caché
@@ -201,8 +203,8 @@ elif nombre_archivo_testing != nombre_session_testing:
 elif nombre_archivo != None:
     # ! BODY - 2DO CASE - TABS
     # ? Se organiza el cuerpo del contenido a partir de tabs
-    st.caption(
-        'En la pestaña "Historial de procesos :material/update:" puede observar el proceso de su archivo...'
+    st.success(
+        '¡Consolidación hecha con éxito! En la pestaña "Historial de procesos :material/update:" puede observar el cómo su archivo es procesado...'
     )
     tab_Info, tab_Data, tab_Logs = st.tabs(
         [
@@ -227,10 +229,12 @@ elif nombre_archivo != None:
 
     # ! Tab info - Se muestran características y datos del archivo
     with tab_Info:
+
         # ! Ejecución
         # ? Historial de procesos
         with tab_Logs:
             st.subheader("Historial de procesos")
+            st.write(proceso_terminado_testing)
             st.caption(
                 '<b>Al finalizar este proceso, podrás descargar tu archivo en "Características e información del archivo" que se encuentra en la primera pestaña.</b>',
                 unsafe_allow_html=True,
@@ -263,6 +267,8 @@ elif nombre_archivo != None:
             st.caption(
                 'Su archivo se ha procesado de forma exitosa. Para descargar, modificar el nombre o extensión del archivo, dirígete a "Características e información del archivo :material/info:"'
             )
+            if archivo_ajustado:            
+                proceso_terminado_testing = True
 
         # ? Características del archivo
         tab_Info.subheader("Características e información del archivo :material/info:")
@@ -342,6 +348,7 @@ elif nombre_archivo != None:
                     data=file,
                     file_name=f"Consolidado_{nombre_archivo}.xlsx",
                 )
+
 
 # ! Secuencia
 
