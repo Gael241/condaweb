@@ -7,6 +7,9 @@ from openpyxl.styles import NamedStyle
 from datetime import datetime, timedelta
 import tempfile
 
+# ? Variables globales con mensaje
+mensaje_inicio = "Aquí se mostrará el archivo 📄 una vez haya terminado de consolidarse. Para comenzar, haz clic sobre el botón de arriba 👆 o arrastra tu archivo ✊"
+
 # ? Instancia de sesiones globales
 if "archivo_consolidado" not in st.session_state:
     st.session_state["archivo_consolidado"] = None
@@ -176,12 +179,21 @@ archivo_consolidado = st.session_state["archivo_consolidado"]
 nombre_archivo = st.session_state["nombre_archivo"]
 archivo_extension = st.session_state["archivo_extension"]
 
+# ?[testing] Testing variables
+nombre_session_testing = f"{nombre_archivo}.{archivo_extension}"
+nombre_archivo_testing = archivo.name
+
 # ? Condicional que muestra mensaje de inicio en caso de no haber elegido un archivo
 # todo: En caso de que el usuario no haya elegido un archivo o lo haya retirado, se mostrará el mensaje
 if archivo == None or nombre_archivo == None:
-    st.write(
-        "Aquí se mostrará el archivo 📄 una vez haya terminado de consolidarse. Para comenzar, haz clic sobre el botón de arriba 👆 o arrastra tu archivo ✊"
+    st.write(mensaje_inicio)
+
+elif nombre_archivo_testing != nombre_session_testing:
+    print(
+        f"Los nombres son diferentes: Archivo que ha sido pasado: {nombre_archivo_testing}  Archivo en caché{nombre_session_testing}"
     )
+    st.write(mensaje_inicio)
+    st.cache_data.clear()
 
 elif nombre_archivo != None:
     # ! BODY - 2DO CASE - TABS
@@ -206,7 +218,9 @@ elif nombre_archivo != None:
             unsafe_allow_html=True,
         )
         st.write(archivo_consolidado)
-        st.error("Pase el mouse sobre la tabla para interactuar con ella: Puede buscar en los registros de la tabla haciendo clic sobre la lupa en la parte superior derecha o hacerla más grande, pero no descargue el archivo por este medio.")
+        st.error(
+            "Pase el mouse sobre la tabla para interactuar con ella: Puede buscar en los registros de la tabla haciendo clic sobre la lupa en la parte superior derecha o hacerla más grande, pero no descargue el archivo por este medio."
+        )
 
     # ! Tab info - Se muestran características y datos del archivo
     with tab_Info:
@@ -214,8 +228,11 @@ elif nombre_archivo != None:
         # ? Historial de procesos
         with tab_Logs:
             st.subheader("Historial de procesos")
-            st.caption('<b>Al finalizar este proceso, podrás descargar tu archivo en "Características e información del archivo" que se encuentra en la primera pestaña.</b>', unsafe_allow_html = True)
-            
+            st.caption(
+                '<b>Al finalizar este proceso, podrás descargar tu archivo en "Características e información del archivo" que se encuentra en la primera pestaña.</b>',
+                unsafe_allow_html=True,
+            )
+
             # * Mensaje de consolidación
             st.success("Consolidación realizada con éxito ✅")
 
@@ -239,12 +256,17 @@ elif nombre_archivo != None:
             st.success(
                 "Archivo procesado y listo para descargar en formato Excel (.xlsx)"
             )
-            
-            st.caption('Su archivo se ha procesado de forma exitosa. Para descargar, modificar el nombre o extensión del archivo, dirígete a "Características e información del archivo :material/info:"')
+
+            st.caption(
+                'Su archivo se ha procesado de forma exitosa. Para descargar, modificar el nombre o extensión del archivo, dirígete a "Características e información del archivo :material/info:"'
+            )
 
         # ? Características del archivo
         tab_Info.subheader("Características e información del archivo :material/info:")
-        st.caption("<b>Aquí puedes ver los detalles de tu archivo o modificarlos según tus necesidades.</b>", unsafe_allow_html = True)
+        st.caption(
+            "<b>Aquí puedes ver los detalles de tu archivo o modificarlos según tus necesidades.</b>",
+            unsafe_allow_html=True,
+        )
         with st.expander(
             "Editar características del archivo :material/edit:", expanded=True
         ):
@@ -261,8 +283,10 @@ elif nombre_archivo != None:
                     ["xlsx", "csv"],
                     index=0,
                 )
-                
-                st.error('Haz clic en "Aplicar cambios" para guardar de forma correcta los cambios realizados.')
+
+                st.error(
+                    'Haz clic en "Aplicar cambios" para guardar de forma correcta los cambios realizados.'
+                )
                 if st.form_submit_button("Apalicar cambios"):
                     st.toast("Los cambios han sido registrados")
 
