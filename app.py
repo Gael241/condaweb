@@ -20,7 +20,6 @@ if "nombre_archivo" not in st.session_state:
 if "archivo_extension" not in st.session_state:
     st.session_state["archivo_extension"] = None
 
-
 # ? Fragmentos
 # todo: Decorador para procesar mejor la caché
 @st.cache_data
@@ -201,8 +200,8 @@ elif nombre_archivo_testing != nombre_session_testing:
 elif nombre_archivo != None:
     # ! BODY - 2DO CASE - TABS
     # ? Se organiza el cuerpo del contenido a partir de tabs
-    st.caption(
-        'En la pestaña "Historial de procesos :material/update:" puede observar el proceso de su archivo...'
+    st.success(
+        '¡Consolidación hecha con éxito! En la pestaña "Historial de procesos :material/update:" puede observar el cómo su archivo es procesado...'
     )
     tab_Info, tab_Data, tab_Logs = st.tabs(
         [
@@ -227,6 +226,7 @@ elif nombre_archivo != None:
 
     # ! Tab info - Se muestran características y datos del archivo
     with tab_Info:
+
         # ! Ejecución
         # ? Historial de procesos
         with tab_Logs:
@@ -342,6 +342,7 @@ elif nombre_archivo != None:
                     data=file,
                     file_name=f"Consolidado_{nombre_archivo}.xlsx",
                 )
+
 
 # ! Secuencia
 
