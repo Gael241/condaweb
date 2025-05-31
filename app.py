@@ -180,6 +180,7 @@ nombre_archivo = st.session_state["nombre_archivo"]
 archivo_extension = st.session_state["archivo_extension"]
 
 # ?[testing] Testing variables
+# todo [testing] En caso que el archivo haya sido subido, instancia las variables
 if archivo:
     nombre_session_testing = f"{nombre_archivo}.{archivo_extension}"
     nombre_archivo_testing = archivo.name
@@ -189,6 +190,7 @@ if archivo:
 if archivo == None or nombre_archivo == None:
     st.write(mensaje_inicio)
 
+# todo [testing] Si los nombres son diferentes, significa que el usuario ha cambiado de archivo
 elif nombre_archivo_testing != nombre_session_testing:
     print(
         f"Los nombres son diferentes: Archivo que ha sido pasado: {nombre_archivo_testing}  Archivo en caché{nombre_session_testing}"
