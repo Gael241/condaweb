@@ -180,8 +180,9 @@ nombre_archivo = st.session_state["nombre_archivo"]
 archivo_extension = st.session_state["archivo_extension"]
 
 # ?[testing] Testing variables
-nombre_session_testing = f"{nombre_archivo}.{archivo_extension}"
-nombre_archivo_testing = archivo.name
+if archivo:
+    nombre_session_testing = f"{nombre_archivo}.{archivo_extension}"
+    nombre_archivo_testing = archivo.name
 
 # ? Condicional que muestra mensaje de inicio en caso de no haber elegido un archivo
 # todo: En caso de que el usuario no haya elegido un archivo o lo haya retirado, se mostrará el mensaje
