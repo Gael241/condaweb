@@ -68,7 +68,7 @@ base = "light"
 primaryColor = "#ff3131"
 
 # Fuente de los títulos
-headingFont = "Montserrat"
+headingFont = "Sans serif"
 
 # Fuente de los textos
 font = "Arial"
