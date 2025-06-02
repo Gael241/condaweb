@@ -149,7 +149,7 @@ with col2:
         help='Sube tu archivo, posteriormente se despliega el botón "Consolidar" para continuar con el proceso.',
     )
 
-    # * Conficional que permite mostrar indicaciones en caso que se encuentre un archivo selecciondo
+    # * Condicional que permite mostrar indicaciones en caso que se encuentre un archivo selecciondo
     if archivo:
         st.caption("Haz clic sobre ✖️ para eliminar el archivo.")
 
@@ -192,7 +192,7 @@ if archivo == None or nombre_archivo == None:
 # todo [testing] Si los nombres son diferentes, significa que el usuario ha cambiado de archivo
 elif nombre_archivo_testing != nombre_session_testing:
     print(
-        f"Los nombres son diferentes: Archivo que ha sido pasado: {nombre_archivo_testing}  Archivo en caché{nombre_session_testing}"
+        f"Los nombres son diferentes: Archivo que ha sido pasado: {nombre_archivo_testing}  Archivo en caché: {nombre_session_testing}"
     )
     st.write(mensaje_inicio)
     st.cache_data.clear()
@@ -201,7 +201,7 @@ elif nombre_archivo != None:
     # ! BODY - 2DO CASE - TABS
     # ? Se organiza el cuerpo del contenido a partir de tabs
     st.success(
-        '¡Consolidación hecha con éxito! En la pestaña "Historial de procesos :material/update:" puede observar el cómo su archivo es procesado...'
+        '¡Consolidación hecha con éxito! En la pestaña "Historial de procesos :material/update:" puede observar los procesos que son realizados para su archivo...'
     )
     tab_Info, tab_Data, tab_Logs = st.tabs(
         [
@@ -261,7 +261,7 @@ elif nombre_archivo != None:
             )
 
             st.caption(
-                'Su archivo se ha procesado de forma exitosa. Para descargar, modificar el nombre o extensión del archivo, dirígete a "Características e información del archivo :material/info:"'
+                '<b>Su archivo se ha procesado de forma exitosa. Para descargar, modificar el nombre o extensión del archivo, dirígete a "Características e información del archivo "</b>', unsafe_allow_html=True
             )
 
         # ? Características del archivo
@@ -328,7 +328,7 @@ elif nombre_archivo != None:
             archivo_basura = archivo_csv
             ruta = os.path.join(os.getcwd(), archivo_csv)
             os.remove(ruta)
-            print("Limpieza realizada")
+            print("Limpieza realizada. Archivo convertido exitósamente...")
 
             st.error(
                 "Si abre el archivo con formato CSV en Excel, ajuste la primera celda ('A') para observar los datos."
