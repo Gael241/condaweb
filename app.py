@@ -20,6 +20,7 @@ if "nombre_archivo" not in st.session_state:
 if "archivo_extension" not in st.session_state:
     st.session_state["archivo_extension"] = None
 
+
 # ? Fragmentos
 # todo: Decorador para procesar mejor la caché
 @st.cache_data
@@ -220,6 +221,7 @@ elif nombre_archivo != None:
             unsafe_allow_html=True,
         )
         st.write(archivo_consolidado)
+
         st.error(
             "Pase el mouse sobre la tabla para interactuar con ella: Puede buscar en los registros de la tabla haciendo clic sobre la lupa en la parte superior derecha o hacerla más grande, pero no descargue el archivo por este medio."
         )
@@ -261,7 +263,8 @@ elif nombre_archivo != None:
             )
 
             st.caption(
-                '<b>Su archivo se ha procesado de forma exitosa. Para descargar, modificar el nombre o extensión del archivo, dirígete a "Características e información del archivo "</b>', unsafe_allow_html=True
+                '<b>Su archivo se ha procesado de forma exitosa. Para descargar, modificar el nombre o extensión del archivo, dirígete a "Características e información del archivo "</b>',
+                unsafe_allow_html=True,
             )
 
         # ? Características del archivo
@@ -312,24 +315,20 @@ elif nombre_archivo != None:
         # * En caso de ser en formato csv, realizar conversión
         if archivo_extension == "csv":
             df = pd.read_excel(archivo_ajustado)
-            archivo_csv = f"Consolidado_{nombre_archivo}.csv"
 
-            # Exportar a CSV con codificación utf-8-sig
-            df.to_csv(archivo_csv, index=False, encoding="utf-8-sig")
+            buffer = io.StringIO()
 
-            # * Botón para descargar CSV
+            df.to_csv(buffer, index=False, encoding="utf-8-sig")
+
+            contenido_csv = buffer.getvalue()
+
             st.download_button(
-                f"Descargar en formato {archivo_extension} :material/download:",
-                data=open(archivo_csv, "rb").read(),
-                file_name=archivo_csv,
+                label=f"Descargar en formato {archivo_extension} :material/download:",
+                data=contenido_csv,
+                file_name=f"Consolidado_{nombre_archivo}.csv",
                 mime="text/csv",
             )
-            # ! Eliminar archivo que se genera
-            archivo_basura = archivo_csv
-            ruta = os.path.join(os.getcwd(), archivo_csv)
-            os.remove(ruta)
-            print("Limpieza realizada. Archivo convertido exitósamente...")
-
+            
             st.error(
                 "Si abre el archivo con formato CSV en Excel, ajuste la primera celda ('A') para observar los datos."
             )
