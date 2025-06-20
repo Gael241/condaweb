@@ -1,3 +1,4 @@
 import streamlit as st
 
-st.header("Hola mundo")
+st.title("Hola Mundo")
+st.write("¡Bienvenido a tu primera aplicación en Streamlit!")
