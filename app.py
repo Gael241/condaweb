@@ -356,7 +356,7 @@ elif nombre_archivo_testing != nombre_session_testing:
         f"Los nombres son diferentes: Archivo que ha sido pasado: {nombre_archivo_testing}  Archivo en caché: {nombre_session_testing}"
     )
     st.write(mensaje_inicio)
-    st.write("Los archivos son distintos")
+    st.warning("Se ha detectado un archivo distinto al que se encuentra en caché, ¡hora de drenar información!")
     st.cache_data.clear()
 
 elif nombre_archivo is not None:
