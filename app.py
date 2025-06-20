@@ -3,7 +3,7 @@ import openpyxl
 import streamlit as st
 import os
 import io
-from openpyxl.styles import NamedStyle
+from openpyxl.styles import NamedStyle, numbers
 from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter
 from datetime import datetime, timedelta
@@ -11,10 +11,6 @@ import tempfile
 
 # ? Variables globales con mensaje
 mensaje_inicio = "Aquí se mostrará el archivo 📄 una vez haya terminado de consolidarse. Para comenzar, haz clic sobre el botón de arriba 👆 o arrastra tu archivo ✊"
-
-ruta_exe = (
-    r"D:\Documents\Universidad\#6_Cuatrimestre\CONDA\Stage\CONDA_app\CONDA_app.exe"
-)
 
 # ? Instancia de sesiones globales
 if "archivo_consolidado" not in st.session_state:
@@ -26,90 +22,218 @@ if "nombre_archivo" not in st.session_state:
 if "archivo_extension" not in st.session_state:
     st.session_state["archivo_extension"] = None
 
+if "df_consolidado" not in st.session_state:
+    st.session_state["df_consolidado"] = None
 
-# ? Fragmentos
-# todo: Decorador para procesar mejor la caché
-@st.cache_data
-# * Formateo de tiempo para primera columna
-def formatear_hora_minuto(df):
+if "archivo_procesado_xlsx" not in st.session_state:
+    st.session_state["archivo_procesado_xlsx"] = None
+
+if "archivo_procesado_csv" not in st.session_state:
+    st.session_state["archivo_procesado_csv"] = None
+
+
+# Nuevo motor de consolidación - Funciones adaptadas para Streamlit
+def leer_datos(archivo):
     """
-    Convierte la primera columna de un DataFrame a formato de fecha y asegura 
-    que Excel lo reconozca como fecha formateada.
-    """
-    # Leer DataFrame si es un archivo
-    if not isinstance(df, pd.DataFrame):
-        df = pd.read_excel(df)
+    Lee los datos del archivo subido por Streamlit y preprocesa la columna de fechas.
     
-    # Crear buffer para almacenar el archivo Excel
+    Args:
+        archivo: Objeto de archivo subido por Streamlit
+        
+    Returns:
+        tuple: DataFrame con datos y nombre del archivo sin extensión
+    """
+    nombre_archivo = archivo.name.split(".")[0]
+    extension = archivo.name.split(".")[1].lower()
+    
+    # Leer el archivo según su extensión
+    if extension == 'xlsx' or extension == 'xls':
+        df = pd.read_excel(archivo)
+    elif extension == 'csv':
+        # Intentar con diferentes codificaciones y delimitadores comunes
+        try:
+            df = pd.read_csv(archivo, encoding='utf-8')
+        except UnicodeDecodeError:
+            try:
+                df = pd.read_csv(archivo, encoding='latin1')
+            except:
+                df = pd.read_csv(archivo, encoding='ISO-8859-1')
+        
+        # Si hay problemas con el delimitador, intenta otros comunes
+        if len(df.columns) == 1:
+            for delimiter in [';', '\t', '|']:
+                try:
+                    df = pd.read_csv(archivo, sep=delimiter, encoding='utf-8')
+                    if len(df.columns) > 1:
+                        break
+                except:
+                    continue
+    else:
+        raise ValueError(f"Formato de archivo no soportado: {extension}. Use xlsx o csv")
+    
+    # Recorta la primera columna (fechas) a 16 caracteres
+    encabezados = list(df.columns)
+    df[encabezados[0]] = df[encabezados[0]].astype(str).str.slice(0, 16)
+    
+    return df, nombre_archivo
+
+
+def consolidar_datos(df):
+    """
+    Para consolidar los datos, se agrupan los registros por fecha y calculando la media.
+    
+    Args:
+        df (DataFrame): DataFrame con los datos a consolidar
+        
+    Returns:
+        DataFrame: DataFrame consolidado
+    """
+    # Agrupa por fechas y calcula la media
+    encabezados = list(df.columns)
+    df_consolidado = df.groupby(encabezados[0]).mean()
+    
+    return df_consolidado
+
+
+def convertir_fechas(df):
+    """
+    Convierte las fechas en el índice del DataFrame a formato datetime.
+    
+    Args:
+        df (DataFrame): DataFrame con fechas en texto plano como índice
+        
+    Returns:
+        DataFrame: DataFrame con fechas en formato datetime como índice
+    """
+    df.index = pd.to_datetime(df.index, errors='coerce')
+    
+    return df
+
+
+@st.cache_data
+def guardar_excel_bytes(df):
+    """
+    Guarda el DataFrame en un objeto BytesIO en formato Excel.
+    
+    Args:
+        df (DataFrame): DataFrame a guardar
+        
+    Returns:
+        BytesIO: Objeto BytesIO con el archivo Excel
+    """
     output = io.BytesIO()
-    df.to_excel(output, index=False, engine="openpyxl")
+    df.to_excel(output)
     output.seek(0)
     
-    # Cargar el archivo Excel y formatear la primera columna
+    return output
+
+
+@st.cache_data
+def guardar_csv_bytes(df, encoding='cp1252'):
+    """
+    Guarda el DataFrame en un objeto BytesIO en formato CSV.
+    
+    Args:
+        df (DataFrame): DataFrame a guardar
+        encoding (str): Codificación a utilizar
+        
+    Returns:
+        BytesIO: Objeto BytesIO con el archivo CSV
+    """
+    # Se crea una copia del DataFrame que mantiene el índice como columna
+    df_csv = df.reset_index()
+    
+    # Realiza el formateo de la columna de fecha a un formato estándar que omita los segundos
+    fecha_col = df_csv.columns[0]
+    df_csv[fecha_col] = df_csv[fecha_col].dt.strftime('%d/%m/%Y %H:%M')
+    
+    output = io.BytesIO()
+    df_csv.to_csv(output, index=False, encoding=encoding, sep=',')
+    output.seek(0)
+    
+    return output
+
+
+@st.cache_data
+def aplicar_formato_fecha_bytes(output_excel):
+    """
+    Aplica formato de fecha DD/MM/AAAA HH:MM a la primera columna del archivo Excel
+    y ajusta el ancho de la columna para evitar que se vean corrompidas.
+    
+    Args:
+        output_excel (BytesIO): Objeto BytesIO con el archivo Excel
+        
+    Returns:
+        BytesIO: Objeto BytesIO con el archivo Excel formateado
+    """
+    # Crear una copia del BytesIO para no modificar el original
+    output = io.BytesIO(output_excel.getvalue())
+    output.seek(0)
+    
+    # Cargar el workbook
     wb = openpyxl.load_workbook(output)
     ws = wb.active
-    
-    # Crear estilo de fecha personalizado
+
+    # Define el estilo de fecha omitiendo los segundos
     date_style = NamedStyle(name='datetime')
-    date_style.number_format = "DD/MM/YYYY HH:MM"
+    date_style.number_format = 'DD/MM/YYYY HH:MM'
+
+    # Aplica el estilo personalizado a la columna A (índice)
+    for row in range(2, ws.max_row + 1): # Empezar desde 2 para evitar el encabezado
+        cell = ws.cell(row=row, column=1)
+        cell.style = date_style
     
-    # Aplicar el estilo a la columna A (empezando desde A2 para saltar el encabezado)
-    for row in ws.iter_rows(min_row=2, min_col=1, max_col=1):
-        for cell in row:
-            cell.style = date_style
-    
-    # Ajustar el ancho de la columna A (fechas) para evitar que se vean corrompidas
+    # Ajustar el ancho de la columna A para evitar que se vean corrompidas
     ws.column_dimensions['A'].width = 20
     
-    # Guardar el archivo en el buffer
-    output.seek(0)
-    wb.save(output)
-    output.seek(0)
+    # Ajustar todas las columnas automáticamente
+    for column in ws.columns:
+        max_length = 0
+        column_letter = get_column_letter(column[0].column)
+        
+        # Encontrar la longitud máxima del texto en la columna
+        for cell in column:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(str(cell.value))
+            except:
+                pass
+        
+        # Aplicar un ancho ajustado (con un pequeño margen)
+        adjusted_width = (max_length + 2)
+        
+        # Para la columna A (fechas), aseguramos un ancho mínimo
+        if column_letter == 'A':
+            adjusted_width = max(adjusted_width, 20)
+        
+        ws.column_dimensions[column_letter].width = adjusted_width
     
-    return output
+    # Guardar el archivo en un nuevo BytesIO
+    output_formateado = io.BytesIO()
+    wb.save(output_formateado)
+    output_formateado.seek(0)
+    
+    return output_formateado
 
 
 @st.cache_data
-# * Convertir Dataframe a Excel
-def convertirExcel(archivo):
+def procesar_contenido_excel(output_excel):
     """
-    Convierte un DataFrame a formato Excel con formato adecuado para fechas.
+    Procesa más a fondo el contenido del archivo Excel para solucionar problemas de fechas.
+    
+    Args:
+        output_excel (BytesIO): Objeto BytesIO con el archivo Excel
+        
+    Returns:
+        BytesIO: Objeto BytesIO con el archivo Excel procesado
     """
-    output = io.BytesIO()
-    archivo.to_excel(output, index=True, engine="openpyxl")
+    # Crear una copia para trabajar
+    output = io.BytesIO(output_excel.getvalue())
     output.seek(0)
-
+    
+    # Cargar el workbook
     wb = openpyxl.load_workbook(output)
     ws = wb.active
-
-    # Crear estilo de fecha personalizado
-    date_style = NamedStyle(name='datetime_format')
-    date_style.number_format = "DD/MM/YYYY HH:MM"
-    
-    # Aplicar el estilo a la columna A desde la segunda fila
-    for row in ws.iter_rows(min_row=2, min_col=1, max_col=1):
-        for cell in row:
-            cell.style = date_style
-
-    # Preparar el buffer para retornarlo
-    output.seek(0)
-    wb.save(output)
-    output.seek(0)
-    
-    return output
-
-
-@st.cache_data
-def procesar_excel(archivo):
-    """
-    Procesa un archivo Excel para formatear fechas y ajustar columnas.
-    """
-    # Cargar el archivo
-    wb = openpyxl.load_workbook(archivo)
-    ws = wb.active
-    
-    # Ajustar el ancho de la columna A
-    ws.column_dimensions["A"].width = 25
     
     # Crear estilo para fecha
     date_style = NamedStyle(name="datetime_format")
@@ -137,86 +261,53 @@ def procesar_excel(archivo):
         # Aplicar formato de fecha
         cell.style = date_style
     
-    # Ajustar todas las columnas automáticamente
-    for column in ws.columns:
-        max_length = 0
-        column_letter = get_column_letter(column[0].column)
-        
-        # Encontrar la longitud máxima del texto en la columna
-        for cell in column:
-            try:
-                if len(str(cell.value)) > max_length:
-                    max_length = len(str(cell.value))
-            except:
-                pass
-        
-        # Aplicar un ancho ajustado con margen
-        adjusted_width = (max_length + 2)
-        
-        # Para la columna A (fechas), aseguramos un ancho mínimo
-        if column_letter == 'A':
-            adjusted_width = max(adjusted_width, 20)
-        
-        ws.column_dimensions[column_letter].width = adjusted_width
+    # Guardar en un nuevo BytesIO
+    output_procesado = io.BytesIO()
+    wb.save(output_procesado)
+    output_procesado.seek(0)
     
-    # Guardar archivo temporal y devolverlo
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp_file:
-        wb.save(tmp_file.name)
-        return tmp_file.name
+    return output_procesado
 
 
 @st.cache_data
-# * Consolidar archivo
 def consolidarArchivo(archivo):
     """
-    Consolida los registros del archivo pasado por argumento agrupando los datos por fecha y calculando la media.
+    Consolida los registros del archivo utilizando el nuevo motor.
     """
-    # Se obtiene el nombre y extensión del archivo
-    archivo_nombre = archivo.name.split(".")[0]
-    archivo_extension = archivo.name.split(".")[1]
-    # Las variables son almacenadas en estados de sesión
-    st.session_state["archivo_extension"] = archivo_extension
-    st.session_state["nombre_archivo"] = archivo_nombre
-    
-    # Leer según la extensión
-    if archivo_extension == "xlsx":
-        df = pd.read_excel(archivo)
-    else:  # csv
-        # Intentar con diferentes codificaciones y delimitadores comunes
-        try:
-            df = pd.read_csv(archivo, encoding='utf-8')
-        except UnicodeDecodeError:
-            try:
-                df = pd.read_csv(archivo, encoding='latin1')
-            except:
-                df = pd.read_csv(archivo, encoding='ISO-8859-1')
+    try:
+        # Leer datos utilizando la nueva función
+        df, nombre_archivo = leer_datos(archivo)
         
-        # Si hay problemas con el delimitador, intenta otros comunes
-        if len(df.columns) == 1:
-            for delimiter in [';', '\t', '|']:
-                try:
-                    df = pd.read_csv(archivo, sep=delimiter, encoding='utf-8')
-                    if len(df.columns) > 1:
-                        break
-                except:
-                    continue
-    
-    # Obtener encabezados
-    Encabezados = list(df.columns)
-    
-    # Recortar la primera columna (fechas) a 16 caracteres
-    df[Encabezados[0]] = df[Encabezados[0]].astype(str).str.slice(0, 16)
-    
-    # Consolidar datos agrupando por fecha y calculando medias
-    df = df.groupby(Encabezados[0]).mean()
-    
-    # Convertir el índice a formato datetime
-    df.index = pd.to_datetime(df.index, errors='coerce')
-    
-    # Celebración visual
-    st.balloons()
-    
-    return df
+        # Guardar nombre y extensión en el estado de sesión
+        st.session_state["nombre_archivo"] = nombre_archivo
+        st.session_state["archivo_extension"] = archivo.name.split(".")[1]
+        
+        # Consolidar datos y convertir fechas utilizando las nuevas funciones
+        df_consolidado = consolidar_datos(df)
+        df_consolidado = convertir_fechas(df_consolidado)
+        
+        
+        # Guardar el DataFrame consolidado en el estado de sesión
+        st.session_state["df_consolidado"] = df_consolidado
+        
+        # Preparar los archivos tanto en Excel como en CSV
+        output_excel = guardar_excel_bytes(df_consolidado)
+        output_excel_formateado = aplicar_formato_fecha_bytes(output_excel)
+        output_excel_procesado = procesar_contenido_excel(output_excel_formateado)
+        
+        output_csv = guardar_csv_bytes(df_consolidado)
+        
+        # Guardar ambos formatos en el estado de sesión
+        st.session_state["archivo_procesado_xlsx"] = output_excel_procesado
+        st.session_state["archivo_procesado_csv"] = output_csv
+        
+        # Celebración visual
+        st.balloons()
+        return df_consolidado
+        
+    except Exception as e:
+        st.error(f"Error durante la consolidación: {str(e)}")
+        return None
 
 
 # ! HEADER
@@ -267,16 +358,19 @@ st.divider()
 archivo_consolidado = st.session_state["archivo_consolidado"]
 nombre_archivo = st.session_state["nombre_archivo"]
 archivo_extension = st.session_state["archivo_extension"]
+df_consolidado = st.session_state.get("df_consolidado")
+archivo_procesado_xlsx = st.session_state.get("archivo_procesado_xlsx")
+archivo_procesado_csv = st.session_state.get("archivo_procesado_csv")
 
 # ?[testing] Testing variables
 # todo [testing] En caso que el archivo haya sido subido, instancia las variables
 if archivo:
-    nombre_session_testing = f"{nombre_archivo}.{archivo_extension}"
+    nombre_session_testing = f"{nombre_archivo}.{archivo_extension}" if nombre_archivo and archivo_extension else None
     nombre_archivo_testing = archivo.name
 
 # ? Condicional que muestra mensaje de inicio en caso de no haber elegido un archivo
 # todo: En caso de que el usuario no haya elegido un archivo o lo haya retirado, se mostrará el mensaje
-if archivo == None or nombre_archivo == None:
+if archivo is None or nombre_archivo is None:
     st.write(mensaje_inicio)
 
 # todo [testing] Si los nombres son diferentes, significa que el usuario ha cambiado de archivo
@@ -287,7 +381,7 @@ elif nombre_archivo_testing != nombre_session_testing:
     st.write(mensaje_inicio)
     st.cache_data.clear()
 
-elif nombre_archivo != None:
+elif nombre_archivo is not None:
     # ! BODY - 2DO CASE - TABS
     # ? Se organiza el cuerpo del contenido a partir de tabs
     st.success(
@@ -309,7 +403,7 @@ elif nombre_archivo != None:
             "<b>Esta es una simple exposición de tus datos consolidados. En el archivo que se descarga, las fechas se encuentran formateadas </b> ✅",
             unsafe_allow_html=True,
         )
-        st.write(archivo_consolidado)
+        st.write(df_consolidado)
 
         st.error(
             "Pase el mouse sobre la tabla para interactuar con ella: Puede buscar en los registros de la tabla haciendo clic sobre la lupa en la parte superior derecha o hacerla más grande, pero no descargue el archivo por este medio."
@@ -336,19 +430,14 @@ elif nombre_archivo != None:
 
             # * Mensajes de formateo
             st.warning("Formateando datos ⌛")
-
-            archivo_convertido = convertirExcel(archivo_consolidado)
-
             st.success("Datos formateados ✅")
 
-            st.warning("Preparando archivo en Excel por defecto (.xlsx)")
-
-            archivo_formateado = formatear_hora_minuto(archivo_convertido)
-
-            archivo_ajustado = procesar_excel(archivo_formateado)
+            st.warning("Preparando archivos")
+            st.success("Archivo Excel con fechas correctamente formateadas ✅")
+            st.success("Archivo CSV con fechas correctamente formateadas ✅")
 
             st.success(
-                "Archivo procesado y listo para descargar en formato Excel (.xlsx)"
+                "Archivos procesados y listos para descargar"
             )
 
             st.caption(
@@ -375,7 +464,7 @@ elif nombre_archivo != None:
                 )
 
                 archivo_extension = st.selectbox(
-                    "Selecciona elformato que desees para el archivo",
+                    "Selecciona el formato que desees para el archivo",
                     ["xlsx", "csv"],
                     index=0,
                 )
@@ -402,17 +491,11 @@ elif nombre_archivo != None:
         )
 
         # ? Botón de descargar con valores definidos por el usuario
-        # * En caso de ser en formato csv, realizar conversión
-        if archivo_extension == "csv":
-            df = pd.read_excel(archivo_ajustado)
-
-            buffer = io.BytesIO()
-            df.to_csv(buffer, index=False, encoding="cp1252")
-            buffer.seek(0)
-
+        # * En caso de ser en formato csv
+        if archivo_extension == "csv" and archivo_procesado_csv:
             st.download_button(
                 label=f"Descargar en formato csv :material/download:",
-                data=buffer,
+                data=archivo_procesado_csv,
                 file_name=f"Consolidado_{nombre_archivo}.csv",
                 mime="text/csv",
             )
@@ -420,12 +503,13 @@ elif nombre_archivo != None:
             st.error(
                 "Si abre el archivo con formato CSV en Excel, ajuste la primera celda ('A') para observar los datos."
             )
-        else:
-            # * En caso de ser xlsx
-            with open(archivo_ajustado, "rb") as file:
-                # * Botón para descargar EXCEL
-                st.download_button(
-                    f"Descargar en formato {archivo_extension} :material/download:",
-                    data=file,
-                    file_name=f"Consolidado_{nombre_archivo}.xlsx",
-                )
+                
+        # * En caso de ser xlsx
+        elif archivo_procesado_xlsx:
+            st.download_button(
+                f"Descargar en formato {archivo_extension} :material/download:",
+                data=archivo_procesado_xlsx,
+                file_name=f"Consolidado_{nombre_archivo}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+            
