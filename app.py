@@ -515,4 +515,4 @@ with label:
     st.write(f"<h5>Más poder... Más libertad... Total independencia.</h5>", unsafe_allow_html=True)
 
 with button:
-    st.link_button("**Descargar CONDA app**", "youtube.com", type="primary", use_container_width=True)
+    st.link_button("**Descargar CONDA app**", "https://www.youtube.com/", type="primary", use_container_width=True)
