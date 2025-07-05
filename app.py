@@ -31,6 +31,13 @@ if "archivo_procesado_xlsx" not in st.session_state:
 if "archivo_procesado_csv" not in st.session_state:
     st.session_state["archivo_procesado_csv"] = None
 
+if "flag" not in st.session_state:
+    st.session_state["flag"] = False
+
+@st.dialog("Aviso")
+def alert(message):
+    st.write(f"## {message}")
+
 def leer_datos(archivo):
     """
     Lee los datos del archivo subido por Streamlit y preprocesa la columna de fechas.
@@ -65,6 +72,13 @@ def leer_datos(archivo):
                         break
                 except:
                     continue
+        
+        num_columns = df.shape[1]
+        if num_columns <= 1:
+            alert("El archivo no es válido para el sistema. Asegúrate de haber subido un archivo con código UTF-8 o extraído desde SCADA.")
+            st.session_state["flag"] = True
+            st.cache_data.clear()
+            return
     else:
         raise ValueError(f"Formato de archivo no soportado: {extension}. Use xlsx o csv")
     
@@ -279,7 +293,7 @@ def consolidarArchivo(archivo):
         return df_consolidado
         
     except Exception as e:
-        st.error(f"Error durante la consolidación: {str(e)}")
+        st.error(f"Error durante la consolidación. Por favor, suba un archivo extraído desde _SCADA_ con código UTF-8...")
         return None
 
 
@@ -357,6 +371,7 @@ elif nombre_archivo_testing != nombre_session_testing:
     )
     st.write(mensaje_inicio)
     st.warning("Se ha detectado un archivo distinto al que se encuentra en caché, ¡hora de drenar información!")
+
     st.cache_data.clear()
 
 elif nombre_archivo is not None:
@@ -490,4 +505,14 @@ elif nombre_archivo is not None:
                 file_name=f"Consolidado_{nombre_archivo}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             )
-            
+
+st.divider()
+
+# ! Footer
+label, button = st.columns(2, gap="small")
+
+with label: 
+    st.write(f"<h5>Más poder... Más libertad... Total independencia.</h5>", unsafe_allow_html=True)
+
+with button:
+    st.link_button("**Descargar CONDA app**", "youtube.com", type="primary", use_container_width=True)
