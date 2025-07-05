@@ -509,10 +509,10 @@ elif nombre_archivo is not None:
 st.divider()
 
 # ! Footer
-label, button = st.columns(2, gap="small")
+label, button = st.columns(2, gap="medium", vertical_alignment="center")
 
 with label: 
-    st.write(f"<h5>Más poder... Más libertad... Total independencia.</h5>", unsafe_allow_html=True)
+    st.write(f"<h6>Realiza la consolidación desde tu computadora, sin conexión a internet y con más potencia...</h6>", unsafe_allow_html=True)
 
 with button:
-    st.link_button("**Descargar CONDA app**", "https://www.youtube.com/", type="primary", use_container_width=True)
+    st.link_button("**Descargar CONDA app**", "youtube.com", type="primary", use_container_width=True, icon="💾")
