@@ -515,4 +515,4 @@ with label:
     st.write(f"<h6>Realiza la consolidación desde tu computadora, sin conexión a internet y con más potencia...</h6>", unsafe_allow_html=True)
 
 with button:
-    st.link_button("**Descargar CONDA app**", "youtube.com", type="primary", use_container_width=True, icon="💾")
+    st.link_button("**Descargar CONDA app**", "#", type="primary", use_container_width=True, icon="💾")
