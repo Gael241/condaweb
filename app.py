@@ -542,23 +542,3 @@ elif nombre_archivo is not None:
                 file_name=f"Consolidado_{nombre_archivo}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             )
-
-st.divider()
-
-# ! Footer
-label, button = st.columns(2, gap="medium", vertical_alignment="center")
-
-with label:
-    st.write(
-        f"<h6>Realiza la consolidación desde tu computadora, sin conexión a internet y con más potencia...</h6>",
-        unsafe_allow_html=True,
-    )
-
-with button:
-    st.link_button(
-        "**Descargar CONDA app**",
-        "youtube.com",
-        type="primary",
-        use_container_width=True,
-        icon="💾",
-    )
