@@ -1,202 +1,235 @@
-import pandas as pd
-import openpyxl
-import streamlit as st
-import os
 import io
-from io import BytesIO
-from openpyxl.styles import NamedStyle, numbers
+from datetime import datetime
+import streamlit as st
+import pandas as pd
+import chardet
+import openpyxl
 from openpyxl import load_workbook
+from openpyxl.styles import NamedStyle, numbers
 from openpyxl.utils import get_column_letter
-from datetime import datetime, timedelta
-import tempfile
 
-# ? Variables globales con mensaje
-mensaje_inicio = "Aquí se mostrará el archivo 📄 una vez haya terminado de consolidarse. Para comenzar, haz clic sobre el botón de arriba 👆 o arrastra tu archivo ✊"
+# Patrones de colores
+# ! Secciones
+# ? Indicaciones
+# * Explicación
+# todo: Detalles
 
-# ? Instancia de sesiones globales
-if "archivo_consolidado" not in st.session_state:
-    st.session_state["archivo_consolidado"] = None
+# ! Configuraciones
+st.set_page_config(page_title="CONDA web", layout="centered", page_icon=":snake:")
 
-if "nombre_archivo" not in st.session_state:
-    st.session_state["nombre_archivo"] = None
+# ! Variables
+date_format = "DD/MM/YYYY HH:MM"
+lista_archivos = []
+extensiones_excel = ["xl", "xlsx", "xls"]
+limited_words = 50
+# todo: Evitar repetición de guardados
+list_process = []
+# todo: Permitir la entrada únicamente de estos archivos
+valid_extensions = ['xl', 'xlsx', 'csv']
+# todo: Limite de archivos aceptables para consolidar
+limited_files = 10
 
-if "archivo_extension" not in st.session_state:
-    st.session_state["archivo_extension"] = None
+# ! Sessions
+if "lista_archivos" not in st.session_state:
+    st.session_state["lista_archivos"] = []
 
-if "df_consolidado" not in st.session_state:
-    st.session_state["df_consolidado"] = None
+if "receive_files" not in st.session_state:
+    st.session_state["receive_files"] = []
 
-if "archivo_procesado_xlsx" not in st.session_state:
-    st.session_state["archivo_procesado_xlsx"] = None
+if "df_files" not in st.session_state:
+    st.session_state["df_files"] = []
 
-if "archivo_procesado_csv" not in st.session_state:
-    st.session_state["archivo_procesado_csv"] = None
+if "consolidate_df" not in st.session_state:
+    st.session_state["consolidate_df"] = []
 
+# ! Bandera
+# todo: Bandera para activar globos
 if "flag" not in st.session_state:
-    st.session_state["flag"] = False
+    st.session_state["flag"] = 0
 
+# ! Functions
+# todo: Guarda en memoria los resultados para no volver a ejecutar por cada llamada
+# ?  Comprueba que no se repitan archivos
+def validate_file():
+    container = st.container(height=320)
+    container.subheader(":material/assignment:  Archivos seleccionados", divider="red", help="Un archivo duplicado **NO** será tomado en cuenta para el proceso de consolidación... Bórrelo de la lista haciendo clic en X, o ignore los mensajes de advertencia :material/error:")
+    # ? Ejecuta función si la condición se cumple
+    # ? [test]Comprobar existencia de archivo para evitar repetición
+    # ? [aprobado][25-06-25]
+    # todo: Valida que los archivos subidos no sean repetidos para optimizar pprocesamiento
+    archivo = st.session_state["archivos_subidos"]
+    lista_nombres = []
+    for id, archivo in enumerate(st.session_state["archivos_subidos"]):
+        if archivo.name not in lista_nombres:
+            file_name = archivo.name
+            file_id = archivo.file_id
+            file_content = archivo
 
-@st.dialog("Aviso")
-def alert(message):
-    st.write(f"{message}")
-
-
-def leer_datos(archivo):
-    """
-    Lee los datos del archivo subido por Streamlit y preprocesa la columna de fechas.
-
-    Args:
-        archivo: Objeto de archivo subido por Streamlit
-
-    Returns:
-        tuple: DataFrame con datos y nombre del archivo sin extensión
-    """
-    nombre_archivo = archivo.name.split(".")[0]
-    extension = archivo.name.split(".")[1].lower()
-
-    # Leer el archivo según su extensión
-    if extension == "xlsx" or extension == "xls":
-        df = pd.read_excel(archivo)
-    elif extension == "csv":
-
-        try:
-            df = pd.read_csv(archivo, encoding="utf-8")
-        except UnicodeDecodeError:
-            try:
-                df = pd.read_csv(archivo, encoding="latin1")
-            except:
-                df = pd.read_csv(archivo, encoding="ISO-8859-1")
-
-        if len(df.columns) == 1:
-            for delimiter in [";", "\t", "|"]:
-                try:
-                    df = pd.read_csv(archivo, sep=delimiter, encoding="utf-8")
-                    if len(df.columns) > 1:
-                        break
-                except:
-                    continue
-
-        num_columns = df.shape[1]
-        if num_columns <= 1:
-            alert(
-                "El archivo no es válido para el sistema. Asegúrate de haber subido un archivo con código UTF-8 o extraído desde SCADA."
+            container.write(f"{id+1} - {file_name}")
+            lista_consolidar = st.session_state["archivos_subidos"]
+            lista_archivos.append(
+                {"1": file_id, "nombre": file_name, "content": file_content}
             )
-            st.session_state["flag"] = True
-            st.cache_data.clear()
-            return
-    else:
-        raise ValueError(
-            f"Formato de archivo no soportado: {extension}. Use xlsx o csv"
+            lista_nombres.append(archivo.name)
+        else:
+            st.toast(f"{archivo.name} ya se encuentra **seleccionado**", icon=":material/error:")
+        st.session_state["lista_archivos"] = lista_nombres
+        st.session_state["receive_files"] = lista_archivos
+
+
+# ? Extrae encode
+# ? [test] Asegurar que los archivos en procesamiento sean los mismos que los subidos
+# ? [aprobado] ! Ajustar
+# ? [solución] Eliminar caché data
+def extract_code(file_arg):
+    # * [legacy] Recorre los archivos guardados en state
+    # ? [test] Evluar extensión del archivo y convertir a df
+    # ? [aprobado] Evluar extensión del archivo y convertir a df
+    # ? [solución] Permite convertir archivos Excel y CSV, estos con código utf-8 y 16 a Dataframe sin corromperse en el proceso
+    for id, archivo in enumerate(file_arg):
+        # todo: Características del archivo
+        file_name = archivo.name.split(".")[0]
+        file_extension = archivo.name.split(".")[1]
+        file_content = archivo
+        if file_extension in extensiones_excel:
+            read_file(
+                archivo_nombre=file_name,
+                archivo=file_content,
+                extension=file_extension,
+            )
+        else:
+            file_content = file_content.read()
+            file_decode = chardet.detect(file_content[:10000])["encoding"] or "utf-8"
+            if file_decode != "UTF-16":
+                # todo: Agregar mensaje de asistencia en print
+                read_file(file_name, file_content, file_decode, file_extension)
+            elif file_decode == "UTF-16":
+                read_file(file_name, file_content, file_decode, file_extension)
+
+
+# ? Consolida los archivos
+# todo: Solicita el diccionario del archivo
+def read_file(archivo_nombre, archivo, encode=None, extension=None, aux=None):
+    """
+    Identifica qué extensión es el archivo.
+
+    ### Args:
+        file_name: Nombre del archivo extraído
+        file_content: Contenido del archivo
+        file_Encode: Código de archivo
+        file_extension: Tipo de archivo
+        aux: Archivo auxiliar
+    """
+    if extension in extensiones_excel:
+        # todo: Agregar mensaje de asistencia en print
+        df = pd.read_excel(archivo)
+
+    elif extension == "csv" and encode == "UTF-16":
+        # todo: Agregar mensaje de asistencia en print
+        archivo = archivo.decode("utf-16")
+        df = pd.read_csv(
+            io.StringIO(archivo),
+            sep=";",
+            dtype=str,
+            engine="python",
+            skipinitialspace=True,
         )
+        # ? Limpiar columnas
+        df = limpiar_columnas(df)
 
-    encabezados = list(df.columns)
-    df[encabezados[0]] = df[encabezados[0]].astype(str).str.slice(0, 16)
-
-    return df, nombre_archivo
-
-
-def consolidar_datos(df):
-    """
-    Para consolidar los datos, se agrupan los registros por fecha y calculando la media.
-
-    Args:
-        df (DataFrame): DataFrame con los datos a consolidar
-
-    Returns:
-        DataFrame: DataFrame consolidado
-    """
-
-    encabezados = list(df.columns)
-    df_consolidado = df.groupby(encabezados[0]).mean()
-
-    return df_consolidado
+    elif extension == "csv" and encode != "UTF-16":
+        # todo: Agregar mensaje de asistencia en print
+        # ? [testing] Convertir csv a df
+        # ? [aprobado] Convertir csv a df
+        file_buffer = io.BytesIO(archivo)
+        df = pd.read_csv(file_buffer, encoding=encode)
+        df = limpiar_columnas(df)
+    st.session_state["df_files"].append(
+        {"nombre": archivo_nombre, "extension": extension, "df": df}
+    )
 
 
-def convertir_fechas(df):
-    """
-    Convierte las fechas en el índice del DataFrame a formato datetime.
-
-    Args:
-        df (DataFrame): DataFrame con fechas en texto plano como índice
-
-    Returns:
-        DataFrame: DataFrame con fechas en formato datetime como índice
-    """
-    df.index = pd.to_datetime(df.index, errors="coerce")
-
+# ? Limpiar columnas de las tablas
+def limpiar_columnas(df):
+    df.columns = [col.encode("utf-8").decode("utf-8-sig").strip() for col in df.columns]
     return df
 
 
-@st.cache_data
-def guardar_excel_bytes(df):
-    """
-    Guarda el DataFrame en un objeto BytesIO en formato Excel.
+# ! Funciones para consolidar archivos
+# ? [test] Motor de consolidación de datos
+# ? [por hacer] Agregar comentarios de asistencia
+def procesar_consolidacion(df_name, df):
+    # * Extrae valores del archivo DataFrame
+    df = df["df"]
+    # * consolidar datos
+    df_consolidado = consolidar_datos(df.copy())
+    # * validar que se haya realizado correctamente
+    if df_consolidado.empty:
+        st.error("No se ha logrado este proceso")
 
-    Args:
-        df (DataFrame): DataFrame a guardar
+    # * Conversión de fechas
+    df_consolidado = convertir_fechas(df_consolidado)
 
-    Returns:
-        BytesIO: Objeto BytesIO con el archivo Excel
-    """
+    excel_file = crear_archivo_excel(df_consolidado)
+
+    csv_file = crear_archivo_csv(df_consolidado)
+
+    return {
+        "file_name": df_name,
+        "file_consolidate": df_consolidado,
+        "file_excel": excel_file,
+        "file_csv": csv_file,
+    }
+
+
+def consolidar_datos(df):
+    # * Extrae primera columna
+    f_column = df.columns[0]
+    df_consolidate = df.copy()
+    # * Recortar fechas en 16 carácteres
+    df_consolidate[f_column] = df_consolidate[f_column].astype(str).str.slice(0, 16)
+    # * Limpieza
+    df_consolidate = df_consolidate[df_consolidate[f_column] != ""]
+    # * Conversión a numérico
+    col_num = []
+    for col in df.columns[1:]:
+        try:
+            df_consolidate[col] = pd.to_numeric(df_consolidate[col], errors="coerce")
+            col_num.append(col)
+        except:
+            pass
+
+    # * Consolidación
+    if col_num:
+        df_consolidate = df_consolidate.groupby(f_column)[col_num].mean()
+    else:
+        df_consolidate = df_consolidate.groupby(f_column).first()
+
+    return df_consolidate
+
+
+def convertir_fechas(df):
+    df_rest = df.copy()
+    df_rest.index = pd.to_datetime(df_rest.index, errors="coerce")
+    # * Elimina fechas inválidas
+    return df_rest
+
+
+def crear_archivo_excel(df):
     output = io.BytesIO()
-    df.to_excel(output)
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, index=True, sheet_name="Consolidado")
+
     output.seek(0)
-
-    return output
-
-
-@st.cache_data
-def guardar_csv_bytes(df, encoding="cp1252"):
-    """
-    Guarda el DataFrame en un objeto BytesIO en formato CSV.
-
-    Args:
-        df (DataFrame): DataFrame a guardar
-        encoding (str): Codificación a utilizar
-
-    Returns:
-        BytesIO: Objeto BytesIO con el archivo CSV
-    """
-
-    df_csv = df.reset_index()
-
-    fecha_col = df_csv.columns[0]
-    df_csv[fecha_col] = df_csv[fecha_col].dt.strftime("%d/%m/%Y %H:%M")
-
-    output = io.BytesIO()
-    df_csv.to_csv(output, index=False, encoding=encoding, sep=",")
-    output.seek(0)
-
-    return output
-
-
-@st.cache_data
-def aplicar_formato_fecha_bytes(output_excel):
-    """
-    Aplica formato de fecha DD/MM/AAAA HH:MM a la primera columna del archivo Excel
-    y ajusta el ancho de la columna para evitar que se vean corrompidas.
-
-    Args:
-        output_excel (BytesIO): Objeto BytesIO con el archivo Excel
-
-    Returns:
-        BytesIO: Objeto BytesIO con el archivo Excel formateado
-    """
-
-    output = io.BytesIO(output_excel.getvalue())
-    output.seek(0)
-
-    wb = openpyxl.load_workbook(output)
+    wb = load_workbook(output)
     ws = wb.active
 
-    date_style = NamedStyle(name="datetime")
-    date_style.number_format = "DD/MM/YYYY HH:MM"
+    date_style = NamedStyle(name="datetime", number_format="DD/MM/YYYY HH:MM")
 
-    for row in range(2, ws.max_row + 1):  # Empezar desde 2 para evitar el encabezado
+    for row in range(2, ws.max_row + 1):
         cell = ws.cell(row=row, column=1)
-        cell.style = date_style
-
-    ws.column_dimensions["A"].width = 20
+        if cell.value:
+            cell.style = date_style
 
     for column in ws.columns:
         max_length = 0
@@ -204,341 +237,242 @@ def aplicar_formato_fecha_bytes(output_excel):
 
         for cell in column:
             try:
-                if len(str(cell.value)) > max_length:
+                if cell.value and len(str(cell.value)) > max_length:
                     max_length = len(str(cell.value))
             except:
                 pass
 
-        adjusted_width = max_length + 2
+        adjusted_width = min(max_length + 2, 50)
 
         if column_letter == "A":
             adjusted_width = max(adjusted_width, 20)
 
         ws.column_dimensions[column_letter].width = adjusted_width
 
-    output_formateado = io.BytesIO()
-    wb.save(output_formateado)
-    output_formateado.seek(0)
+    end_output = io.BytesIO()
+    wb.save(end_output)
+    end_output.seek(0)
+    return end_output.getvalue()
 
-    return output_formateado
+
+def crear_archivo_csv(df, encode="cp1252"):
+    file_csv = df.reset_index()
+    fecha_col = file_csv.columns[0]
+    file_csv[fecha_col] = file_csv[fecha_col].dt.strftime("%d/%m/%Y %H:%M")
+    output = io.StringIO()
+    file_csv.to_csv(output, index=False, sep=",")
+    # ? [test | 02/07/25] Permite a los archivos CSV exportar con acentos
+    # ? [APROBADO]
+    return output.getvalue().encode("utf-8-sig")
 
 
+# ? Almacenar en estado el resultado de la consolidación, exportación y resultado total del procesamiento del archivo
 @st.cache_data
-def procesar_contenido_excel(output_excel):
-    """
-    Procesa más a fondo el contenido del archivo Excel para solucionar problemas de fechas.
-
-    Args:
-        output_excel (BytesIO): Objeto BytesIO con el archivo Excel
-
-    Returns:
-        BytesIO: Objeto BytesIO con el archivo Excel procesado
-    """
-    output = io.BytesIO(output_excel.getvalue())
-    output.seek(0)
-
-    wb = openpyxl.load_workbook(output)
-    ws = wb.active
-
-    date_style = NamedStyle(name="datetime_format")
-    date_style.number_format = "DD/MM/YYYY HH:MM"
-
-    for row in range(2, ws.max_row + 1):
-        cell = ws.cell(row=row, column=1)
-        if isinstance(cell.value, (int, float)):
-            fecha = datetime.fromordinal(693594 + int(cell.value))
-            hora = int((cell.value % 1) * 24)
-            minuto = int((cell.value % 1 * 1440) % 60)
-
-            minuto = (minuto // 5) * 5
-
-            if minuto >= 60:
-                fecha += timedelta(hours=1)
-                minuto = 0
-
-            fecha = fecha.replace(hour=hora, minute=minuto, second=0)
-            cell.value = fecha
-
-        cell.style = date_style
-
-    output_procesado = io.BytesIO()
-    wb.save(output_procesado)
-    output_procesado.seek(0)
-
-    return output_procesado
-
-
-@st.cache_data
-def consolidarArchivo(archivo):
-    """
-    Consolida los registros del archivo utilizando el nuevo motor.
-    """
-    try:
-        df, nombre_archivo = leer_datos(archivo)
-        st.session_state["nombre_archivo"] = nombre_archivo
-        st.session_state["archivo_extension"] = archivo.name.split(".")[1]
-
-        df_consolidado = consolidar_datos(df)
-        df_consolidado = convertir_fechas(df_consolidado)
-
-        st.session_state["df_consolidado"] = df_consolidado
-
-        output_excel = guardar_excel_bytes(df_consolidado)
-        output_excel_formateado = aplicar_formato_fecha_bytes(output_excel)
-        output_excel_procesado = procesar_contenido_excel(output_excel_formateado)
-
-        output_csv = guardar_csv_bytes(df_consolidado)
-
-        st.session_state["archivo_procesado_xlsx"] = output_excel_procesado
-        st.session_state["archivo_procesado_csv"] = output_csv
-
-        st.balloons()
-        return df_consolidado
-
-    except Exception as e:
-        st.error(
-            f"Error durante la consolidación. Por favor, suba un archivo extraído desde _SCADA_ con código UTF-8..."
+def save_files(df_files):
+    # ? [test | 02/07/2025] Evaluar que no se consoliden dos veces el mismo archivo
+    # ? [test | Aprobado]
+    lista_consolidados = []
+    for id, file_not_consolidate in enumerate(df_files):
+        name_file = (
+            f"{file_not_consolidate["nombre"]}.{file_not_consolidate["extension"]}"
         )
-    return None
+        if name_file not in lista_consolidados:
+            lista_consolidados.append(file_not_consolidate)
+        else:
+            st.toast(f"El archivo {file_not_consolidate["nombre"]} está repetido")
+    for id, df_file in enumerate(lista_consolidados):
+        df_name = f"{df_file["nombre"]}.{df_file["extension"]}"
+        for file_process in st.session_state["consolidate_df"]:
+            file_process_name = f"{file_process["nombre"]}"
+            list_process.append(file_process_name)
+        if df_name not in list_process:
+            rest = procesar_consolidacion(df_name, df_file)
+            file_name = rest["file_name"]
+            file_extension = df_file["extension"]
+            file_content = rest["file_consolidate"]
+            file_excel = rest["file_excel"]
+            file_csv = rest["file_csv"]
+            st.session_state["consolidate_df"].append(
+                {
+                    "nombre": file_name,
+                    "settings_file_name": file_name,
+                    "extension": file_extension,
+                    "contenido": file_content,
+                    "excel": file_excel,
+                    "csv": file_csv,
+                }
+            )
+        else:
+            print("Archivo ya registrado")
+        
+    # ? -------------------------------------
+    print("Archivos en memoria")
+    st.session_state["flag"] = 1
 
-
-# ! HEADER
-st.set_page_config(page_title="CONDA web", page_icon=":material/update:")
-
-# ? Definir columnas
-col1, col2 = st.columns([1, 2], gap="medium", vertical_alignment="center")
-
-# ? Dar contenido a las columnas
-# todo: Columna 1
-with col1:
-    st.image("./assets/logo_conda.png", width=500)
-
-# todo: Columna 2
-with col2:
-    # * Input para recibir archivo
-    archivo = st.file_uploader(
-        "✨ Haz clic o arrastra tu archivo aquí para comenzar 🚀",
-        ["csv", "xlsx"],
-        accept_multiple_files=False,
-        help='Sube tu archivo, posteriormente se despliega el botón "Consolidar" para continuar con el proceso.',
+@st.dialog("Editar nombre del archivo")
+def settings(id, file_name):
+    settings_file_name = st.text_input(
+        f":material/edit_note: Agrega un **nuevo nombre** al archivo: {file_name}",
+        max_chars=limited_words,
+        placeholder="Nombre nuevo",
+        value=file_name,
+        type='default'
     )
+    if st.button("Aplicar cambios", type="primary"):
+        st.session_state["consolidate_df"][id]["settings_file_name"] = settings_file_name
+        st.rerun()
 
-    # * Condicional que permite mostrar indicaciones en caso que se encuentre un archivo selecciondo
-    if archivo:
-        st.caption("Haz clic sobre ✖️ para eliminar el archivo.")
 
-        # * Al presionar el botón, ejecuta la consolidación
-        if st.button(
-            "Consolidar :material/sync:",
-            use_container_width=True,
-            help="Haz clic para empezar a consolidar tu archivo.",
-            key="consolidar",
-        ):
-            # * Validar que sea archivo válido
-            try:
-                if archivo.name.endswith(".xlsx"):
-                    wb = load_workbook(filename=BytesIO(archivo.read()), data_only=True)
+# ! Skeleton Squeme
+# ? Columnas
+col_1, col_2 = st.columns(2, vertical_alignment="top", gap="small")
 
-                    sheet = wb.active
+with col_1:
+    st.title("Conda Web")
+    archivos = st.file_uploader(
+        "**Selecciona uno o varios archivos** haciendo clic aquí abajo 👇",
+        accept_multiple_files=True,
+        args="archivo",
+        key="archivos_subidos",
+        help=f"El sistema **solo** permite consolidar **{limited_files} archivos**...",
+        type=valid_extensions
+    )
+    
+    if archivos == []:
+        st.caption(":material/info: Puedes subir **un archivo** de hasta 200 MB. No se considera el peso **total acumulado**...")
 
-                    header = sheet["A1"].value
-
-                    if header == "Tiempo":
-                        # * Enviar dataframe convertido a espacio de almacenamiento global para evitar scope
-                        st.session_state["archivo_consolidado"] = consolidarArchivo(
-                            archivo
-                        )
-                    else:
-                        alert(
-                            "El sistema no es capaz de procesar este archivo debido a que este no es consolidable. Por favor, selecciona un archivo extraído desde __SCADA__."
-                        )
-                elif archivo.name.endswith(".csv"):
-                    df = pd.read_csv(archivo)
-                    if "Tiempo" in df.columns:
-                        archivo.seek(0)
-                        # * Enviar dataframe convertido a espacio de almacenamiento global para evitar scope
-                        st.session_state["archivo_consolidado"] = consolidarArchivo(
-                            archivo
-                        )
-                    else:
-                        alert(
-                            "El sistema no es capaz de procesar este archivo debido a que este no es consolidable. Por favor, selecciona un archivo extraído desde __SCADA__."
-                        )
-            except Exception as e:
-                st.error(
-                    f"Error durante la consolidación. Por favor, suba un archivo extraído desde _SCADA_ con código UTF-8..."
-                )
-    else:
-        # * Recordatorio de accesibilidad para el usuario
-        st.caption(
-            "<b>Recuerda que:</b> <br/> - Solo puedes seleccionar un único archivo 📄 para este proceso. <br/> - Admite CSV y XLSX hasta 190MB.",
-            unsafe_allow_html=True,
+with col_2:
+    # ? Evitar que se repitan archivos
+    # todo: Revisa que haya información en la sesión y que la variable archivos tenga información
+    if st.session_state["archivos_subidos"] != None and len(archivos) > 0:
+        container = st.container(border=True)
+        # ? Ejecuta función si la condición se cumple
+        validate_file()
+        consolidar = st.button(
+            "**Consolidar datos** :material/upload_file:", type="primary", use_container_width=True, disabled=False,
+            help="Haz clic sobre este botón para empezar a consolidar los **archivos seleccionados**"
         )
+    
+        if consolidar: 
+            # ? Valida que el sistema no reciba más de una cantidad específica de archivos para su procesamiento en el servidor
+            if len(archivos) > limited_files:
+                st.error(f"El sistema solo permite consolidar **{limited_files} archivos**")
+            else:
+                # ? [test | 02/07/25] Evitar error al ingresar más archivos al sistema con archivos ya consolidados
+                # ? [test] Aprobado | Procesa archivos nuevos con archivos subidos anteriormente
+                lista_procesados = []
+                lista_por_procesar = []
+
+                if st.session_state["df_files"]:
+                    for id, file_in in enumerate(st.session_state["df_files"]):
+                        name_state_file = f"{st.session_state["df_files"][id]["nombre"]}.{st.session_state["df_files"][id]["extension"]}"
+                        lista_procesados.append(name_state_file)
+
+                for id, file_in in enumerate(archivos):
+                    name_file = file_in.name
+                    if name_file not in lista_procesados:
+                        st.session_state["flag"] = 1
+                        print(f"El archivo {name_file} no se ha procesado")
+                        lista_por_procesar.append(file_in)
+
+                # ? [test | 02/07/25] Mostrar toast de archivos
+                if st.session_state["flag"] > 0:
+                    # * Variables para asignación de mensajes
+                    value = len(lista_por_procesar) if len(lista_por_procesar) > 1 else "un"
+                    message = "archivos" if len(lista_por_procesar) >= 2 else "archivo" 
+                    st.toast(f":material/access_time: Empezando el procesamiento de **{value}** {message}... Espere.")
+                st.session_state["flag"] = 0
+                extract_code(lista_por_procesar)
+    # ? ---------------------------------------------#
+
+    elif st.session_state["archivos_subidos"] != None and len(archivos) == 0:
+        # todo: Muestra el mensaje de asistencia [SUJETOS A CAMBIOS]
+        st.caption("Aquí se **mostrarán** cada uno los archivos que hayas **seleccionado**... ¡A consolidar datos!")
 
 st.divider()
 
-# ! BODY - 1ER CASO
-# ? Variables globales
-archivo_consolidado = st.session_state["archivo_consolidado"]
-nombre_archivo = st.session_state["nombre_archivo"]
-archivo_extension = st.session_state["archivo_extension"]
-df_consolidado = st.session_state.get("df_consolidado")
-archivo_procesado_xlsx = st.session_state.get("archivo_procesado_xlsx")
-archivo_procesado_csv = st.session_state.get("archivo_procesado_csv")
+# ! Pie de página si no hay archivos en dataframes
 
-# ?[testing] Testing variables
-# todo [testing] En caso que el archivo haya sido subido, instancia las variables
-if archivo:
-    nombre_session_testing = (
-        f"{nombre_archivo}.{archivo_extension}"
-        if nombre_archivo and archivo_extension
-        else None
+if len(st.session_state["df_files"]) == 0 or len(archivos) == 0:
+    # todo: Elimina la caché del estado en caso que se desee consolidar otros archivos
+
+    save_files.clear()
+    if "lista_archivos" in st.session_state:
+        st.session_state["lista_archivos"] = []
+
+    if "receive_files" in st.session_state:
+        st.session_state["receive_files"] = []
+
+    if "df_files" in st.session_state:
+        st.session_state["df_files"] = []
+
+    if "consolidate_df" in st.session_state:
+        st.session_state["consolidate_df"] = []
+    
+    if "flag" in st.session_state:
+        st.session_state["flag"] = 0
+    
+    
+    # * Muestra mensaje de asistencia
+    st.caption(
+        "Aquí se mostrarán los **archivos** 📄 cuando hayan terminado de **consolidarse**. Cuando los selecciones, haz clic sobre el botón de arriba 👆 en **¡Consolidar datos!**"
     )
-    nombre_archivo_testing = archivo.name
+else:
+    # ! Funciones
+    save_files(st.session_state["df_files"])
+    if st.session_state["flag"] > 0:
+        st.balloons()
+        st.session_state["flag"] = 0
 
-# ? Condicional que muestra mensaje de inicio en caso de no haber elegido un archivo
-# todo: En caso de que el usuario no haya elegido un archivo o lo haya retirado, se mostrará el mensaje
-if archivo is None or nombre_archivo is None:
-    st.write(mensaje_inicio)
+    # ! Esqueleto de la página
+    st.subheader("Archivos procesados", help="**Protip**: Al descargar el archivo... ¡Haz clic sobre el nombre en la tarjeta para que sea ocultado y no te confundas!")
+    cols = st.columns(5, gap="small", vertical_alignment="top")
 
-# todo [testing] Si los nombres son diferentes, significa que el usuario ha cambiado de archivo
-elif nombre_archivo_testing != nombre_session_testing:
-    print(
-        f"Los nombres son diferentes: Archivo que ha sido pasado: {nombre_archivo_testing}  Archivo en caché: {nombre_session_testing}"
-    )
-    st.write(mensaje_inicio)
-    st.warning(
-        "Se ha detectado un archivo distinto al que se encuentra en caché, ¡hora de drenar información!"
-    )
+    # ? Determinar cuantas columnas mostrar
+    cols_por_fila = 2
 
-    st.cache_data.clear()
-
-elif nombre_archivo is not None:
-    # ! BODY - 2DO CASE - TABS
-    # ? Se organiza el cuerpo del contenido a partir de tabs
-    st.success(
-        '¡Consolidación hecha con éxito! En la pestaña "Historial de procesos :material/update:" puede observar los procesos que son realizados para su archivo...'
-    )
-    tab_Info, tab_Data, tab_Logs = st.tabs(
-        [
-            "Características e información del archivo :material/info:",
-            "Vista previa de datos procesados :material/table:",
-            "Historial de procesos :material/update:",
-        ]
-    )
-
-    # ! Tab Data - Muestra tabla consolidada
-    with tab_Data:
-        st.subheader("Vista previa de datos procesados :material/table:")
-        # ? Mostrar tabla de datos consolidados
-        st.caption(
-            "<b>Esta es una simple exposición de tus datos consolidados. En el archivo que se descarga, las fechas se encuentran formateadas </b> ✅",
-            unsafe_allow_html=True,
-        )
-        st.write(df_consolidado)
-
-        st.error(
-            "Pase el mouse sobre la tabla para interactuar con ella: Puede buscar en los registros de la tabla haciendo clic sobre la lupa en la parte superior derecha o hacerla más grande, pero no descargue el archivo por este medio."
-        )
-
-    # ! Tab info - Se muestra el historial de procesos
-    with tab_Info:
-
-        # ! Ejecución
-        # ? Historial de procesos
-        with tab_Logs:
-            st.subheader("Historial de procesos")
-            st.caption(
-                '<b>Al finalizar este proceso, podrás descargar tu archivo en "Características e información del archivo" que se encuentra en la primera pestaña.</b>',
-                unsafe_allow_html=True,
-            )
-
-            # * Mensaje de consolidación
-            st.success("Consolidación realizada con éxito ✅")
-
-            st.info(
-                'Dirígete a la pestaña "Vista previa de datos procesados :material/table:" para ver tus datos procesados...'
-            )
-
-            # * Mensajes de formateo
-            st.warning("Formateando datos ⌛")
-            st.success("Datos formateados ✅")
-
-            st.warning("Preparando archivos")
-            st.success("Archivo Excel con fechas correctamente formateadas ✅")
-            st.success("Archivo CSV con fechas correctamente formateadas ✅")
-
-            st.success("Archivos procesados y listos para descargar")
-
-            st.caption(
-                '<b>Su archivo se ha procesado de forma exitosa. Para descargar, modificar el nombre o extensión del archivo, dirígete a "Características e información del archivo "</b>',
-                unsafe_allow_html=True,
-            )
-
-        # ? Características del archivo
-        tab_Info.subheader("Características e información del archivo :material/info:")
-        st.caption(
-            "<b>Aquí puedes ver los detalles de tu archivo o modificarlos según tus necesidades.</b>",
-            unsafe_allow_html=True,
-        )
-        with st.expander(
-            "Editar características del archivo :material/edit:", expanded=True
+    # * Columnas padre
+    for i in range(0, len(st.session_state["consolidate_df"]), cols_por_fila):
+        cols = st.columns(cols_por_fila)
+        # * Columnas anidadas
+        for j, idx in enumerate(
+            range(i, min(i + cols_por_fila, len(st.session_state["consolidate_df"])))
         ):
-            # ? Formulario
-            with st.form("Archivo"):
-                nombre_archivo = st.text_input(
-                    "📁 Nombre del archivo",
-                    placeholder=f"Consolidado_{nombre_archivo}",
-                    value=nombre_archivo,
-                    help="Agrega un nombre específico a tu archivo",
-                )
-
-                archivo_extension = st.selectbox(
-                    "Selecciona el formato que desees para el archivo",
-                    ["xlsx", "csv"],
-                    index=0,
-                )
-
-                st.error(
-                    'Haz clic en "Aplicar cambios" para guardar de forma correcta los cambios realizados.'
-                )
-                if st.form_submit_button("Aplicar cambios"):
-                    st.toast("Los cambios han sido registrados")
-
-        # ? Datos del archivo
-        # * Primer tab: Características del archivo
-        st.write(f"<b>Nombre del archivo:</b> {nombre_archivo}", unsafe_allow_html=True)
-        st.caption(
-            f"El archivo será descargado con la extensión: <i>Consolidado_</i>{nombre_archivo}<i>.{archivo_extension}</i>",
-            unsafe_allow_html=True,
-        )
-        st.write(
-            f"<b>Formato del archivo: </b>{archivo_extension}",
-            unsafe_allow_html=True,
-        )
-        st.caption(
-            'Si desea modificar el nombre o extensión del archivo, haga clic sobre el apartado "Editar características del archivo :material/edit:"'
-        )
-
-        # ? Botón de descargar con valores definidos por el usuario
-        # * En caso de ser en formato csv
-        if archivo_extension == "csv" and archivo_procesado_csv:
-            st.download_button(
-                label=f"Descargar en formato csv :material/download:",
-                data=archivo_procesado_csv,
-                file_name=f"Consolidado_{nombre_archivo}.csv",
-                mime="text/csv",
+            file_in = st.session_state["consolidate_df"][idx]
+            file_name = file_in["settings_file_name"].split(".")[0]
+            file_name_expansive = f"{idx + 1} - " + (
+                file_name
+                if len(file_name) < 25
+                else file_name[:-5] + "..."
             )
-
-            st.error(
-                "Si abre el archivo con formato CSV en Excel, ajuste la primera celda ('A') para observar los datos."
-            )
-
-        # * En caso de ser xlsx
-        elif archivo_procesado_xlsx:
-            st.download_button(
-                f"Descargar en formato {archivo_extension} :material/download:",
-                data=archivo_procesado_xlsx,
-                file_name=f"Consolidado_{nombre_archivo}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            )
+            extension = st.session_state["consolidate_df"][idx]["extension"].split(".")[
+                -1
+            ]
+            # * Mostrar columnas
+            with cols[j]:
+                with st.expander(f"**{file_name_expansive}**", expanded=True):
+                    st.write(f"Extensión del archivo: **{extension}**")
+                    if st.button(
+                        " :material/edit: Cambiar nombre",
+                        use_container_width=True,
+                        key=f"conf_{idx}",
+                        type="secondary",
+                    ):
+                        settings(idx, file_name=file_name)
+                    st.download_button(
+                        ":material/file_download: Descargar como **Excel**",
+                        data=file_in["excel"],
+                        key=f"excel_{idx}",
+                        file_name=f"Consolidado_{file_name}.xlsx",
+                        use_container_width=True,
+                    )
+                    st.download_button(
+                        " :material/file_download: Descargar como **CSV**",
+                        data=file_in["csv"],
+                        mime= "text/csv", 
+                        key=f"csv_{idx}",
+                        file_name=f"Consolidado_{file_name}.csv",
+                        type="secondary",
+                        help="Una vez abras el archivo, ¡ajuta la primera columna!",
+                        use_container_width=True,
+                    )
